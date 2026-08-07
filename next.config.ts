@@ -1,7 +1,101 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+const bunnyPullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
+
+const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [];
+
+remotePatterns.push({
+  protocol: "https",
+  hostname: "picsum.photos",
+  pathname: "/**",
+});
+
+if (bunnyPullZoneUrl) {
+  const bunnyUrl = new URL(bunnyPullZoneUrl);
+
+  remotePatterns.push({
+    protocol: bunnyUrl.protocol.replace(":", "") as "http" | "https",
+    hostname: bunnyUrl.hostname,
+    pathname: "/**",
+  });
+}
+
+const imageHosts = ["picsum.photos", "fastly.picsum.photos"];
+
+if (bunnyPullZoneUrl) {
+  imageHosts.push(new URL(bunnyPullZoneUrl).hostname);
+}
+
+const mediaHosts = ["interactive-examples.mdn.mozilla.net"];
+
+if (bunnyPullZoneUrl) {
+  mediaHosts.push(new URL(bunnyPullZoneUrl).hostname);
+}
+
+const scriptSrc = isProduction
+  ? "'self' 'unsafe-inline'"
+  : "'self' 'unsafe-inline' 'unsafe-eval'";
+const connectSrc = isProduction ? "'self'" : "'self' ws:";
+const imgSrc = `'self' data: blob: ${imageHosts
+  .map((host) => `https://${host}`)
+  .join(" ")}`;
+const mediaSrc = `'self' blob: ${mediaHosts
+  .map((host) => `https://${host}`)
+  .join(" ")}`;
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  `connect-src ${connectSrc}`,
+  `img-src ${imgSrc}`,
+  "font-src 'self' data:",
+  `media-src ${mediaSrc}`,
+  `script-src ${scriptSrc}`,
+  "style-src 'self' 'unsafe-inline'",
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  ...(isProduction
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=31536000; includeSubDomains; preload",
+        },
+      ]
+    : []),
+];
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
+  images: {
+    remotePatterns,
+    formats: ["image/avif", "image/webp"],
+  },
+  poweredByHeader: false,
+  allowedDevOrigins: ["127.0.0.1"],
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

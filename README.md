@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a Next.js 16 application configured for Drizzle ORM, PostgreSQL, and Docker.
 
-## Getting Started
-
-First, run the development server:
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The complete local production-like platform runs with:
 
-## Learn More
+```bash
+docker compose up --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+For source-mounted Docker development with hot reload:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose -f docker-compose.development.yml up
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For production:
 
-## Deploy on Vercel
+```bash
+docker compose -f docker-compose.production.yml up -d --build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Startup order is: wait for PostgreSQL, run generated Drizzle SQL migrations when `RUN_DATABASE_MIGRATIONS=true`, optionally seed only when `RUN_DATABASE_SEED=true`, then start `.next/standalone/server.js`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Database
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:push
+pnpm db:studio
+pnpm db:seed
+```
+
+Use `pnpm db:migrate` for production deployments. `db:push` is only for local schema iteration.
+
+## Backups and recovery
+
+Docker volumes are persistent storage, not backups. Keep database backups outside the Docker host and test restores regularly.
+
+Logical backup:
+
+```bash
+docker compose exec db pg_dump -U herald -d herald -Fc -f /tmp/herald.dump
+docker compose cp db:/tmp/herald.dump ./backups/herald.dump
+```
+
+Restore:
+
+```bash
+docker compose cp ./backups/herald.dump db:/tmp/herald.dump
+docker compose exec db pg_restore -U herald -d herald --clean --if-exists /tmp/herald.dump
+```
+
+Named-volume backup:
+
+```bash
+docker run --rm -v newwebsite_postgres_data:/volume -v "$PWD/backups:/backup" alpine tar czf /backup/postgres_data.tgz -C /volume .
+```
+
+Migration rollback strategy: prefer forward-only corrective migrations. If rollback is unavoidable, restore a tested backup to a new database, deploy the previous application image against it, and only then switch traffic.
+
+Bunny.net media is not stored permanently in the app container. Back up Bunny Storage separately using Bunny’s storage APIs or a scheduled sync to another durable object store.

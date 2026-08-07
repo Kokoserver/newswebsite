@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-herald}
+      POSTGRES_USER: ${POSTGRES_USER:-herald}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-herald_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-herald} -d ${POSTGRES_DB:-herald}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install && pnpm dev"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-herald}:${POSTGRES_PASSWORD:-herald_password}@db:5432/${POSTGRES_DB:-herald}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
+      AUTH_SECRET: ${AUTH_SECRET:-local-development-auth-secret-change-me}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      COMMENT_AUTO_APPROVE: ${COMMENT_AUTO_APPROVE:-true}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      BUNNY_STORAGE_ZONE: ${BUNNY_STORAGE_ZONE:-}
+      BUNNY_STORAGE_ACCESS_KEY: ${BUNNY_STORAGE_ACCESS_KEY:-}
+      BUNNY_STORAGE_HOSTNAME: ${BUNNY_STORAGE_HOSTNAME:-}
+      BUNNY_PULL_ZONE_URL: ${BUNNY_PULL_ZONE_URL:-}
+      BUNNY_UPLOAD_MAX_BYTES: ${BUNNY_UPLOAD_MAX_BYTES:-15728640}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+
+volumes:
+  postgres_data:
+  node_modules:

@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-herald}
+      POSTGRES_USER: ${POSTGRES_USER:-herald}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-herald} -d ${POSTGRES_DB:-herald}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-herald}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-herald}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      AUTH_URL: ${AUTH_URL:?AUTH_URL is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+      BUNNY_STORAGE_ZONE: ${BUNNY_STORAGE_ZONE:?BUNNY_STORAGE_ZONE is required}
+      BUNNY_STORAGE_ACCESS_KEY: ${BUNNY_STORAGE_ACCESS_KEY:?BUNNY_STORAGE_ACCESS_KEY is required}
+      BUNNY_STORAGE_HOSTNAME: ${BUNNY_STORAGE_HOSTNAME:?BUNNY_STORAGE_HOSTNAME is required}
+      BUNNY_PULL_ZONE_URL: ${BUNNY_PULL_ZONE_URL:?BUNNY_PULL_ZONE_URL is required}
+      BUNNY_UPLOAD_MAX_BYTES: ${BUNNY_UPLOAD_MAX_BYTES:-15728640}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
+      RUN_DATABASE_MIGRATIONS: ${RUN_DATABASE_MIGRATIONS:-true}
+      RUN_DATABASE_SEED: ${RUN_DATABASE_SEED:-false}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:3000/api/health"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+
+volumes:
+  postgres_data:

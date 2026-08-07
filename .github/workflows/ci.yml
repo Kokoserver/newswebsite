@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: herald_test
+          POSTGRES_USER: herald
+          POSTGRES_PASSWORD: herald_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U herald -d herald_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://herald:herald_password@localhost:5432/herald_test
+      DATABASE_MAX_CONNECTIONS: 5
+      AUTH_SECRET: ci-auth-secret
+      AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      BUNNY_STORAGE_ZONE: ci
+      BUNNY_STORAGE_ACCESS_KEY: ci
+      BUNNY_STORAGE_HOSTNAME: storage.bunnycdn.com
+      BUNNY_PULL_ZONE_URL: https://example.b-cdn.net
+      CRON_SECRET: ci-cron-secret
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.20.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - run: pnpm build
+      - run: docker build -t herald-news .
