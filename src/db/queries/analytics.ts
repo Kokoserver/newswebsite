@@ -1,8 +1,8 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 
 import { getDb } from "@/src/db";
-import { articleViewDailyStats, articles } from "@/src/db/schema";
+import { articleCategories, articleViewDailyStats, articles, categories, media } from "@/src/db/schema";
 
 export async function getArticleViewAggregation(articleId: string) {
   const db = await getDb();
@@ -35,11 +35,21 @@ const getTrendingArticlesCached = unstable_cache(
         id: articles.id,
         title: articles.title,
         slug: articles.slug,
+        categoryName: categories.name,
+        categorySlug: categories.slug,
+        imageUrl: media.publicUrl,
+        imageAlt: media.altText,
         views: sql<number>`coalesce(sum(${articleViewDailyStats.views}), 0)`,
       })
       .from(articleViewDailyStats)
       .innerJoin(articles, eq(articleViewDailyStats.articleId, articles.id))
-      .groupBy(articles.id)
+      .leftJoin(media, eq(articles.heroImageId, media.id))
+      .leftJoin(
+        articleCategories,
+        and(eq(articleCategories.articleId, articles.id), eq(articleCategories.isPrimary, true)),
+      )
+      .leftJoin(categories, eq(articleCategories.categoryId, categories.id))
+      .groupBy(articles.id, categories.name, categories.slug, media.publicUrl, media.altText)
       .orderBy(desc(sql`coalesce(sum(${articleViewDailyStats.views}), 0)`))
       .limit(limit);
   },

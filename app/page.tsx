@@ -621,7 +621,23 @@ export default async function Home() {
                 {trendingArticles.map((item, index) => (
                   <li key={item.id}>
                     <span>{index + 1}</span>
-                    <Link href={`/articles/${item.slug}`}>{item.title}</Link>
+                    <Link className="trending-thumb" href={`/articles/${item.slug}`}>
+                      {item.imageUrl ? (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.imageAlt ?? item.title}
+                          width={92}
+                          height={64}
+                          sizes="92px"
+                        />
+                      ) : (
+                        <strong>{item.categoryName?.slice(0, 1) ?? "D"}</strong>
+                      )}
+                    </Link>
+                    <div className="trending-copy">
+                      {item.categoryName ? <em>{item.categoryName}</em> : null}
+                      <Link href={`/articles/${item.slug}`}>{item.title}</Link>
+                    </div>
                   </li>
                 ))}
               </ol>
@@ -633,8 +649,24 @@ export default async function Home() {
                 {mostReadArticles.map((item, index) => (
                   <li className="ranking" key={item.id}>
                     <span>{index + 1}</span>
-                    <Link href={`/articles/${item.slug}`}>{item.title}</Link>
-                    <strong>{item.viewCount.toLocaleString()}</strong>
+                    <Link className="ranking-thumb" href={`/articles/${item.slug}`}>
+                      {item.imageUrl ? (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.imageAlt ?? item.title}
+                          width={92}
+                          height={64}
+                          sizes="92px"
+                        />
+                      ) : (
+                        <b>{item.categoryName?.slice(0, 1) ?? "D"}</b>
+                      )}
+                    </Link>
+                    <div className="ranking-copy">
+                      {item.categoryName ? <em>{item.categoryName}</em> : null}
+                      <Link href={`/articles/${item.slug}`}>{item.title}</Link>
+                      <strong>{item.viewCount.toLocaleString()}</strong>
+                    </div>
                   </li>
                 ))}
               </ol>

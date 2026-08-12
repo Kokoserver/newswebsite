@@ -245,10 +245,20 @@ const getMostReadArticlesCached = unstable_cache(
         id: articles.id,
         title: articles.title,
         slug: articles.slug,
+        categoryName: categories.name,
+        categorySlug: categories.slug,
+        imageUrl: media.publicUrl,
+        imageAlt: media.altText,
         viewCount: articles.viewCount,
         publishedAt: articles.publishedAt,
       })
       .from(articles)
+      .leftJoin(media, eq(articles.heroImageId, media.id))
+      .leftJoin(
+        articleCategories,
+        and(eq(articleCategories.articleId, articles.id), eq(articleCategories.isPrimary, true)),
+      )
+      .leftJoin(categories, eq(articleCategories.categoryId, categories.id))
       .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`))
       .orderBy(desc(articles.viewCount), desc(articles.publishedAt))
       .limit(limit);
