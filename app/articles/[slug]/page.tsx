@@ -28,7 +28,7 @@ import { getArticleViewCount } from "@/src/db/queries/analytics";
 import { getNavbarCategories } from "@/src/db/queries/categories";
 import { getSession } from "@/src/session";
 
-import { commentAutoApproveEnabled } from "@/src/config";
+import { commentAutoApproveEnabled, getSiteUrl } from "@/src/config";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +59,7 @@ function fallbackImage(seed: string) {
 }
 
 function shareUrl(path: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getSiteUrl();
   return new URL(path, baseUrl).toString();
 }
 

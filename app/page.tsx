@@ -20,6 +20,7 @@ import { getNavbarCategories } from "@/src/db/queries/categories";
 import { getHomepageData } from "@/src/db/queries/homepage";
 import { getVideoMedia } from "@/src/db/queries/media";
 import { getTrendingArticles } from "@/src/db/queries/analytics";
+import { getSiteUrl } from "@/src/config";
 
 import AdvertisementSlot from "@/components/advertisement-slot";
 import NewsletterForm from "@/components/newsletter-form";
@@ -92,7 +93,7 @@ function fallbackImage(seed: string) {
 }
 
 function shareUrl(path: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getSiteUrl();
   return new URL(path, baseUrl).toString();
 }
 

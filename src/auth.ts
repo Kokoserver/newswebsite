@@ -3,10 +3,11 @@ import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
+import { getAuthSecret } from "@/src/config";
 import { users } from "@/src/db/schema";
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  secret: getAuthSecret(),
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 7,

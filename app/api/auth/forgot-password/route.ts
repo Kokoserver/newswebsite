@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getSiteUrl } from "@/src/config";
 import { getDb } from "@/src/db";
 import { passwordResetTokens, users } from "@/src/db/schema";
 
@@ -19,7 +20,7 @@ function hashToken(token: string) {
 }
 
 function buildResetUrl(token: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getSiteUrl();
   return new URL(`/reset-password?token=${encodeURIComponent(token)}`, baseUrl).toString();
 }
 

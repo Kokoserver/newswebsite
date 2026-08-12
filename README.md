@@ -15,13 +15,16 @@ By default the app uses `file:/tmp/daily-chronicle-demo.db`. If an old non-SQLit
 
 ## Vercel Demo Deployment
 
-For the current demo setup, the app can use file SQLite on Vercel. Keep this environment variable:
+For the current demo setup, the app can use file SQLite on Vercel with code defaults. You can deploy without database env vars. Override these only when needed:
 
 ```bash
 SQLITE_DATABASE_URL=file:/tmp/daily-chronicle-demo.db
 AUTH_SECRET=your-production-secret
 AUTH_URL=https://your-domain.com
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
+SEED_ADMIN_EMAIL=admin@example.com
+SEED_ADMIN_PASSWORD=change-me-locally
+COMMENT_AUTO_APPROVE=true
 ```
 
 `pnpm build` runs `pnpm db:sync` first. The runtime also checks the file DB on cold start and applies migrations plus demo seed data if the file is missing or empty.
