@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import CommentActions from "@/components/comment-actions";
 import CopyLinkButton from "@/components/copy-link-button";
 import RecordView from "@/components/record-view";
+import StickySiteHeader from "@/components/sticky-site-header";
 import UserMenu from "@/components/user-menu";
 import VideoPlayer from "@/components/video-player";
 import {
@@ -156,6 +157,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   const primaryCategory =
     article.categories.find((category) => category.isPrimary) ?? article.categories[0];
   const articleUrl = shareUrl(`/articles/${article.slug}`);
+  const commentsCallbackUrl = `/articles/${article.slug}#comments`;
+  const loginCallbackUrl = `/login?callbackUrl=${encodeURIComponent(commentsCallbackUrl)}`;
 
   const session = await getSession();
 
@@ -173,32 +176,36 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
   const paragraphs = textBlocks(article.renderedContent, article.excerpt);
   const commentAutoApprove = commentAutoApproveEnabled();
+  const signedIn = Boolean(session?.user?.id || session?.user?.email);
+  const commenterName = session?.user?.name ?? session?.user?.email ?? "your account";
 
   return (
     <main className="article-site">
       <RecordView articleId={article.id} />
-      <header className="article-masthead">
-        <Link href="/" className="article-brand">
-          Daily Chronicle
-        </Link>
-        <nav aria-label="Article navigation">
-          <Link href="/">Home</Link>
-          {navItems.slice(0, 6).map((item) => (
-            <Link href={item.href} key={item.id}>
-              {item.label}
-            </Link>
-          ))}
-          <Link href="/search" aria-label="Search" title="Search">
-            <Search size={15} />
+      <StickySiteHeader className="article-sticky-header">
+        <header className="article-masthead">
+          <Link href="/" className="article-brand">
+            Daily Chronicle
           </Link>
-          <UserMenu size={15} />
-        </nav>
-      </header>
+          <nav aria-label="Article navigation">
+            <Link href="/">Home</Link>
+            {navItems.slice(0, 6).map((item) => (
+              <Link href={item.href} key={item.id}>
+                {item.label}
+              </Link>
+            ))}
+            <Link href="/search" aria-label="Search" title="Search">
+              <Search size={15} />
+            </Link>
+            <UserMenu size={15} />
+          </nav>
+        </header>
 
-      <div className="article-breaking">
-        <strong>{article.type.replaceAll("_", " ")}</strong>
-        <span>{primaryCategory?.name ?? "News"} · Follow updates, pictures and reader reaction</span>
-      </div>
+        <div className="article-breaking">
+          <strong>{article.type.replaceAll("_", " ")}</strong>
+          <span>{primaryCategory?.name ?? "News"} · Follow updates, pictures and reader reaction</span>
+        </div>
+      </StickySiteHeader>
 
       <div className="article-layout">
         <article className="article-body">
@@ -226,7 +233,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           <div className="article-meta">
             <span>By {article.author?.name ?? "Daily Chronicle Reporter"}</span>
             <span>
-              <Clock3 size={13} /> Updated: {formatDate(article.updatedAt)}
+              <Clock3 size={13} /> Published: {formatDate(article.publishedAt)}
             </span>
             <span>
               <Eye size={13} /> {liveViewCount.toLocaleString()} views
@@ -322,11 +329,11 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             ) : null}
 
             {article.allowComments ? (
-              session?.user ? (
+              signedIn ? (
                 <>
                   <p className="comment-auth">
                     Commenting as{" "}
-                    <strong>{session.user.name ?? session.user.email}</strong>.
+                    <strong>{commenterName}</strong>.
                     {commentAutoApprove ? null : " Comments are reviewed before appearing."}
                   </p>
                   <form className="comment-form" action={`/articles/${article.slug}/comments`} method="post">
@@ -356,7 +363,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
                   </form>
                   <p className="comment-auth">
                     Have an account?{" "}
-                    <Link href={`/login?callbackUrl=/articles/${article.slug}#comments`}>
+                    <Link href={loginCallbackUrl}>
                       Sign in
                     </Link>{" "}
                     to skip entering your details.
@@ -378,8 +385,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
                       initialLikes={comment.likes}
                       initialDislikes={comment.dislikes}
                       initialReaction={comment.myReaction}
-                      signedIn={Boolean(session?.user)}
-                      loginUrl={`/login?callbackUrl=/articles/${article.slug}#comments`}
+                      signedIn={signedIn}
+                      loginUrl={loginCallbackUrl}
                     />
                     <span>{formatDate(comment.createdAt)}</span>
                   </div>

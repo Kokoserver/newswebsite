@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
@@ -38,7 +39,7 @@ export default function LoginForm({ callbackUrl = "/" }: LoginFormProps) {
   }
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
+    <form className="auth-form" method="post" onSubmit={handleSubmit}>
       {error ? <p className="auth-error">{error}</p> : null}
       <label>
         Email
@@ -67,6 +68,9 @@ export default function LoginForm({ callbackUrl = "/" }: LoginFormProps) {
       <button type="submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </button>
+      <Link className="auth-secondary-link" href="/forgot-password">
+        Forgot password?
+      </Link>
     </form>
   );
 }

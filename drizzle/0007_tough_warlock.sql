@@ -1,1 +1,0 @@
-ALTER TABLE "media" ADD COLUMN "poster_url" text;

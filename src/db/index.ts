@@ -1,38 +1,24 @@
 import "server-only";
 
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
 
+import { ensureFileDatabaseDirectory, getDatabaseConfig } from "@/src/db/config";
+import { ensureDatabaseReady } from "@/src/db/ensure-ready";
 import * as schema from "@/src/db/schema";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is not configured");
-}
-
-const maximumConnections = Number.parseInt(
-  process.env.DATABASE_MAX_CONNECTIONS ?? "10",
-  10,
-);
-
-if (!Number.isFinite(maximumConnections) || maximumConnections < 1) {
-  throw new Error("DATABASE_MAX_CONNECTIONS must be a positive integer");
-}
-
-type DatabaseConnection = ReturnType<typeof postgres>;
+const databaseConfig = getDatabaseConfig();
+ensureFileDatabaseDirectory(databaseConfig.url);
 
 const globalForDatabase = globalThis as unknown as {
-  databaseConnection?: DatabaseConnection;
+  databaseConnection?: Client;
 };
 
 const connection =
   globalForDatabase.databaseConnection ??
-  postgres(databaseUrl, {
-    max: maximumConnections,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    prepare: false,
+  createClient({
+    url: databaseConfig.url,
+    authToken: databaseConfig.authToken,
   });
 
 if (process.env.NODE_ENV !== "production") {
@@ -43,5 +29,10 @@ export const db = drizzle(connection, {
   schema,
   logger: process.env.NODE_ENV === "development",
 });
+
+export async function getDb() {
+  await ensureDatabaseReady(db);
+  return db;
+}
 
 export { connection };

@@ -13,7 +13,8 @@ import { asDate } from "./rehydrate";
 
 const getCategoryArchiveCached = unstable_cache(
   async (slug: string, limit: number, offset: number) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     const category = await db.query.categories.findFirst({
       columns: {
@@ -77,10 +78,11 @@ export async function getCategoryArchive(slug: string, limit = 24, offset = 0) {
 
 const countCategoryArticlesCached = unstable_cache(
   async (slug: string) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     const [row] = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(articleCategories)
       .innerJoin(categories, eq(articleCategories.categoryId, categories.id))
       .innerJoin(articles, eq(articleCategories.articleId, articles.id))
@@ -103,7 +105,8 @@ export async function countCategoryArticles(slug: string) {
 }
 
 export async function getActiveCategories() {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   return db.query.categories.findMany({
     columns: {
@@ -120,7 +123,8 @@ export async function getActiveCategories() {
 
 const getNavbarCategoriesCached = unstable_cache(
   async () => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     return db
       .select({
@@ -146,7 +150,8 @@ export async function getNavbarCategories() {
 }
 
 export async function getArticleCategoryOptions() {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   return db.query.categories.findMany({
     columns: {
@@ -162,7 +167,8 @@ export async function getArticleCategoryOptions() {
 }
 
 export async function getCategoryBySlug(slug: string) {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   return db.query.categories.findFirst({
     columns: {

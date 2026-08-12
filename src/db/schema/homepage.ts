@@ -3,19 +3,15 @@ import {
   check,
   index,
   integer,
-  pgEnum,
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { articles } from "./articles";
 import { media } from "./media";
 
-export const homepageSectionKind = pgEnum("homepage_section_kind", [
+export const homepageSectionKindValues = [
   "HERO",
   "LATEST",
   "FEATURED",
@@ -23,21 +19,23 @@ export const homepageSectionKind = pgEnum("homepage_section_kind", [
   "OPINION",
   "VIDEO",
   "ADVERTISEMENT",
-]);
+] as const;
+export type HomepageSectionKind = (typeof homepageSectionKindValues)[number];
+const homepageSectionKind = (name: string) => text(name, { enum: homepageSectionKindValues });
 
-export const homepageSections = pgTable(
+export const homepageSections = sqliteTable(
   "homepage_sections",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    key: varchar("key", { length: 80 }).notNull(),
-    title: varchar("title", { length: 180 }).notNull(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    key: text("key", { length: 80 }).notNull(),
+    title: text("title", { length: 180 }).notNull(),
     kind: homepageSectionKind("kind").notNull(),
     position: integer("position").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
@@ -48,24 +46,24 @@ export const homepageSections = pgTable(
   ],
 );
 
-export const homepageItems = pgTable(
+export const homepageItems = sqliteTable(
   "homepage_items",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    sectionId: uuid("section_id")
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    sectionId: text("section_id")
       .notNull()
       .references(() => homepageSections.id, { onDelete: "cascade" }),
-    articleId: uuid("article_id").references(() => articles.id, {
+    articleId: text("article_id").references(() => articles.id, {
       onDelete: "cascade",
     }),
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "set null" }),
-    titleOverride: varchar("title_override", { length: 240 }),
+    mediaId: text("media_id").references(() => media.id, { onDelete: "set null" }),
+    titleOverride: text("title_override", { length: 240 }),
     dekOverride: text("dek_override"),
     position: integer("position").notNull(),
-    startsAt: timestamp("starts_at", { withTimezone: true }),
-    endsAt: timestamp("ends_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    startsAt: integer("starts_at", { mode: "timestamp" }),
+    endsAt: integer("ends_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [

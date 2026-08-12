@@ -17,7 +17,8 @@ import { asDate } from "./rehydrate";
 
 const getPublishedArticleBySlugCached = unstable_cache(
   async (slug: string) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     const article = await db.query.articles.findFirst({
       columns: {
@@ -124,7 +125,8 @@ export async function getPublishedArticleBySlug(slug: string) {
 
 const searchArticlesCached = unstable_cache(
   async (query: string, limit: number) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     const normalized = query.trim();
 
@@ -159,7 +161,10 @@ const searchArticlesCached = unstable_cache(
         and(
           eq(articles.status, "PUBLISHED"),
           sql`${articles.deletedAt} IS NULL`,
-          or(sql`${articles.title} ILIKE ${pattern}`, sql`${articles.excerpt} ILIKE ${pattern}`),
+          or(
+            sql`lower(${articles.title}) LIKE lower(${pattern})`,
+            sql`lower(${articles.excerpt}) LIKE lower(${pattern})`,
+          ),
         ),
       )
       .orderBy(desc(articles.publishedAt))
@@ -184,7 +189,8 @@ export async function searchArticles(query: string, limit = 30) {
 
 const getLatestArticlesCached = unstable_cache(
   async (limit: number, offset: number) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     const rows = await db
       .select({
@@ -231,7 +237,8 @@ export async function getLatestArticles(limit = 12, offset = 0) {
 
 const getMostReadArticlesCached = unstable_cache(
   async (limit: number) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     return db
       .select({
@@ -259,10 +266,11 @@ export async function getMostReadArticles(limit = 10) {
 
 const countLatestArticlesCached = unstable_cache(
   async () => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     const [row] = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(articles)
       .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`));
 
@@ -277,7 +285,8 @@ export async function countLatestArticles() {
 }
 
 export async function getAdminArticleList(status?: (typeof articles.$inferSelect)["status"]) {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   return db
     .select({
@@ -299,7 +308,8 @@ export async function getAdminArticleList(status?: (typeof articles.$inferSelect
 }
 
 export async function getArticlesByIds(articleIds: string[]) {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   if (articleIds.length === 0) {
     return [];
@@ -322,7 +332,8 @@ export async function getApprovedCommentsForArticle(
   currentUserId: string | null = null,
   limit = 25,
 ) {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   const rows = await db
     .select({
@@ -371,7 +382,8 @@ export async function getApprovedCommentsForArticle(
 
 const getRelatedArticlesCached = unstable_cache(
   async (articleId: string, categoryIds: string[], limit: number) => {
-    const { db } = await import("@/src/db");
+    const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
     if (categoryIds.length === 0) {
       return getLatestArticlesCached(limit, 0);

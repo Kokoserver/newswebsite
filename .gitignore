@@ -18,6 +18,7 @@
 
 # next.js
 /.next/
+/.next-local/
 /out/
 
 # production
@@ -26,6 +27,8 @@
 # misc
 .DS_Store
 *.pem
+/data/
+/.sqlite/
 
 # debug
 npm-debug.log*

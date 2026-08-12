@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 
-export default function SignupForm() {
+type SignupFormProps = {
+  callbackUrl?: string;
+};
+
+export default function SignupForm({ callbackUrl = "/" }: SignupFormProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,12 +50,12 @@ export default function SignupForm() {
       return;
     }
 
-    router.push("/");
+    router.push(callbackUrl);
     router.refresh();
   }
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
+    <form className="auth-form" method="post" onSubmit={handleSubmit}>
       {error ? <p className="auth-error">{error}</p> : null}
       <label>
         Name

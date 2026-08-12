@@ -13,7 +13,8 @@ const reactionSchema = z.object({
 });
 
 export async function POST(request: Request, context: RouteContext) {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
   const { commentId } = await context.params;
 
   const session = await getServerSession(authOptions);

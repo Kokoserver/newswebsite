@@ -1,11 +1,12 @@
 import "dotenv/config";
 
+import { createClient } from "@libsql/client";
 import { sql } from "drizzle-orm";
 import { hash } from "bcryptjs";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 
 import * as schema from "@/src/db/schema";
+import { ensureFileDatabaseDirectory, getDatabaseConfig } from "@/src/db/config";
 import {
   accounts,
   advertisements,
@@ -32,15 +33,12 @@ import {
   verificationTokens,
 } from "@/src/db/schema";
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseConfig = getDatabaseConfig();
+ensureFileDatabaseDirectory(databaseConfig.url);
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
-}
-
-const connection = postgres(databaseUrl, {
-  max: 1,
-  prepare: false,
+const connection = createClient({
+  url: databaseConfig.url,
+  authToken: databaseConfig.authToken,
 });
 
 const db = drizzle(connection, { schema });
@@ -168,12 +166,12 @@ async function clearDemoData(tx: Parameters<Parameters<typeof db.transaction>[0]
   await tx.delete(verificationTokens).where(sql`${verificationTokens.identifier} = 'demo@example.com'`);
 }
 
-async function seed() {
+export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db) {
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@example.com";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-locally";
   const hashedPassword = await hash(adminPassword, 12);
 
-  const result = await db.transaction(async (tx) => {
+  const result = await database.transaction(async (tx) => {
     await clearDemoData(tx);
 
     const seededUsers = [];
@@ -335,20 +333,64 @@ async function seed() {
       }
     }
 
-    imageRows.push({
-      kind: "IMAGE" as const,
-      title: "Homepage billboard advert",
-      altText: "Demo advertisement creative",
-      caption: "Demo advertising image.",
-      bunnyPath: "demo/ads/homepage-billboard.jpg",
-      publicUrl: sampleImageUrl("ad-homepage", 1200, 320),
-      mimeType: "image/jpeg",
-      byteSize: 180_000,
-      width: 1200,
-      height: 320,
-      metadata: { provider: "picsum", demo: true, slot: "HOMEPAGE_TOP" },
-      uploadedById: editor.id,
-    });
+    imageRows.push(
+      {
+        kind: "IMAGE" as const,
+        title: "Homepage billboard advert",
+        altText: "Luxury coastal travel advertisement creative",
+        caption: "Generated homepage billboard advertising image.",
+        bunnyPath: "demo/ads/homepage-billboard.jpg",
+        publicUrl: "/ads/generated-travel-billboard.webp",
+        mimeType: "image/webp",
+        byteSize: 54_000,
+        width: 1200,
+        height: 320,
+        metadata: { provider: "imagegen", demo: true, slot: "HOMEPAGE_TOP" },
+        uploadedById: editor.id,
+      },
+      {
+        kind: "IMAGE" as const,
+        title: "Homepage middle advert",
+        altText: "Finance growth advertisement creative",
+        caption: "Generated finance sidebar advertising image.",
+        bunnyPath: "demo/ads/homepage-middle.jpg",
+        publicUrl: "/ads/generated-finance-sidebar.webp",
+        mimeType: "image/webp",
+        byteSize: 22_000,
+        width: 600,
+        height: 760,
+        metadata: { provider: "imagegen", demo: true, slot: "HOMEPAGE_MIDDLE" },
+        uploadedById: editor.id,
+      },
+      {
+        kind: "IMAGE" as const,
+        title: "Sidebar travel advert",
+        altText: "Lifestyle shopping advertisement creative",
+        caption: "Generated lifestyle shopping advertising image.",
+        bunnyPath: "demo/ads/sidebar-travel.jpg",
+        publicUrl: "/ads/generated-shopping-sidebar.webp",
+        mimeType: "image/webp",
+        byteSize: 73_000,
+        width: 600,
+        height: 760,
+        metadata: { provider: "imagegen", demo: true, slot: "HOMEPAGE_MIDDLE" },
+        uploadedById: editor.id,
+      },
+      {
+        kind: "IMAGE" as const,
+        title: "Sidebar finance advert",
+        altText: "Wellness lifestyle advertisement creative",
+        caption: "Generated wellness advertising image.",
+        bunnyPath: "demo/ads/sidebar-finance.jpg",
+        publicUrl: "/ads/generated-wellness-sidebar.webp",
+        mimeType: "image/webp",
+        byteSize: 34_000,
+        width: 600,
+        height: 760,
+        metadata: { provider: "imagegen", demo: true, slot: "ARTICLE_SIDEBAR" },
+        uploadedById: editor.id,
+      },
+    );
 
     for (const [videoTitle, videoSlug, videoCaption] of videoEntries) {
       imageRows.push({
@@ -640,7 +682,10 @@ async function seed() {
 
     await tx.insert(homepageItems).values(homepageRows);
 
-    const adMedia = mediaByPath.get("demo/ads/homepage-billboard.jpg");
+    const billboardAdMedia = mediaByPath.get("demo/ads/homepage-billboard.jpg");
+    const middleAdMedia = mediaByPath.get("demo/ads/homepage-middle.jpg");
+    const travelAdMedia = mediaByPath.get("demo/ads/sidebar-travel.jpg");
+    const financeAdMedia = mediaByPath.get("demo/ads/sidebar-finance.jpg");
     const seededAds = await tx
       .insert(advertisements)
       .values([
@@ -648,7 +693,31 @@ async function seed() {
           name: "Demo Homepage Billboard",
           status: "ACTIVE",
           targetUrl: "https://example.com/demo/homepage-billboard",
-          mediaId: adMedia?.id,
+          mediaId: billboardAdMedia?.id,
+          startsAt: daysAgo(1),
+          endsAt: daysAgo(-30),
+        },
+        {
+          name: "Demo Homepage Middle",
+          status: "ACTIVE",
+          targetUrl: "https://example.com/demo/homepage-middle",
+          mediaId: middleAdMedia?.id,
+          startsAt: daysAgo(1),
+          endsAt: daysAgo(-30),
+        },
+        {
+          name: "Demo Sidebar Travel",
+          status: "ACTIVE",
+          targetUrl: "https://example.com/demo/sidebar-travel",
+          mediaId: travelAdMedia?.id,
+          startsAt: daysAgo(1),
+          endsAt: daysAgo(-30),
+        },
+        {
+          name: "Demo Sidebar Finance",
+          status: "ACTIVE",
+          targetUrl: "https://example.com/demo/sidebar-finance",
+          mediaId: financeAdMedia?.id,
           startsAt: daysAgo(1),
           endsAt: daysAgo(-30),
         },
@@ -656,7 +725,7 @@ async function seed() {
           name: "Demo Article Sidebar",
           status: "ACTIVE",
           targetUrl: "https://example.com/demo/article-sidebar",
-          mediaId: adMedia?.id,
+          mediaId: financeAdMedia?.id ?? middleAdMedia?.id,
           startsAt: daysAgo(1),
           endsAt: daysAgo(-30),
         },
@@ -664,7 +733,7 @@ async function seed() {
           name: "Demo Category Top",
           status: "ACTIVE",
           targetUrl: "https://example.com/demo/category-top",
-          mediaId: adMedia?.id,
+          mediaId: billboardAdMedia?.id,
           startsAt: daysAgo(1),
           endsAt: daysAgo(-30),
         },
@@ -681,6 +750,27 @@ async function seed() {
       },
       {
         advertisementId: seededAds[1].id,
+        slot: "HOMEPAGE_MIDDLE",
+        position: 1,
+        startsAt: daysAgo(1),
+        endsAt: daysAgo(-30),
+      },
+      {
+        advertisementId: seededAds[2].id,
+        slot: "HOMEPAGE_MIDDLE",
+        position: 2,
+        startsAt: daysAgo(1),
+        endsAt: daysAgo(-30),
+      },
+      {
+        advertisementId: seededAds[3].id,
+        slot: "HOMEPAGE_MIDDLE",
+        position: 3,
+        startsAt: daysAgo(1),
+        endsAt: daysAgo(-30),
+      },
+      {
+        advertisementId: seededAds[4].id,
         slot: "ARTICLE_SIDEBAR",
         articleId: seededArticles[0].id,
         position: 1,
@@ -688,7 +778,7 @@ async function seed() {
         endsAt: daysAgo(-30),
       },
       {
-        advertisementId: seededAds[2].id,
+        advertisementId: seededAds[5].id,
         slot: "CATEGORY_TOP",
         position: 1,
         startsAt: daysAgo(1),
@@ -753,13 +843,16 @@ async function seed() {
   });
 
   console.log("Demo seed completed", result);
+  return result;
 }
 
-seed()
-  .catch((error) => {
-    console.error("Database seed failed", error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await connection.end();
-  });
+if (process.argv[1]?.endsWith("seed.ts")) {
+  seedDatabase()
+    .catch((error) => {
+      console.error("Database seed failed", error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      connection.close();
+    });
+}

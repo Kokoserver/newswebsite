@@ -44,7 +44,8 @@ export async function POST(request: Request, { params }: CommentRouteContext) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
   const session = await getServerSession(authOptions);
   const { slug } = await params;
   const formData = await request.formData();

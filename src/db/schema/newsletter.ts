@@ -1,22 +1,19 @@
-import { index, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-export const newsletterSubscriberStatus = pgEnum("newsletter_subscriber_status", [
-  "PENDING",
-  "ACTIVE",
-  "UNSUBSCRIBED",
-  "BOUNCED",
-]);
+export const newsletterSubscriberStatusValues = ["PENDING", "ACTIVE", "UNSUBSCRIBED", "BOUNCED"] as const;
+export type NewsletterSubscriberStatus = (typeof newsletterSubscriberStatusValues)[number];
+const newsletterSubscriberStatus = (name: string) => text(name, { enum: newsletterSubscriberStatusValues });
 
-export const newsletterSubscribers = pgTable(
+export const newsletterSubscribers = sqliteTable(
   "newsletter_subscribers",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    email: varchar("email", { length: 320 }).notNull(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    email: text("email", { length: 320 }).notNull(),
     status: newsletterSubscriberStatus("status").default("PENDING").notNull(),
-    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-    unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    confirmedAt: integer("confirmed_at", { mode: "timestamp" }),
+    unsubscribedAt: integer("unsubscribed_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [

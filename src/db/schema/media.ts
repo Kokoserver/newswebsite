@@ -1,50 +1,42 @@
 import { relations } from "drizzle-orm";
 import {
-  bigint,
   index,
-  jsonb,
-  pgEnum,
-  pgTable,
+  integer,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { users } from "./users";
 
-export const mediaKind = pgEnum("media_kind", [
-  "IMAGE",
-  "VIDEO",
-  "AUDIO",
-  "DOCUMENT",
-]);
+export const mediaKindValues = ["IMAGE", "VIDEO", "AUDIO", "DOCUMENT"] as const;
+export type MediaKind = (typeof mediaKindValues)[number];
+const mediaKind = (name: string) => text(name, { enum: mediaKindValues });
 
-export const media = pgTable(
+export const media = sqliteTable(
   "media",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
     kind: mediaKind("kind").default("IMAGE").notNull(),
-    title: varchar("title", { length: 240 }),
-    slug: varchar("slug", { length: 320 }),
-    altText: varchar("alt_text", { length: 320 }),
+    title: text("title", { length: 240 }),
+    slug: text("slug", { length: 320 }),
+    altText: text("alt_text", { length: 320 }),
     caption: text("caption"),
     posterUrl: text("poster_url"),
     bunnyPath: text("bunny_path").notNull(),
     publicUrl: text("public_url").notNull(),
-    mimeType: varchar("mime_type", { length: 120 }).notNull(),
-    byteSize: bigint("byte_size", { mode: "number" }).notNull(),
-    width: bigint("width", { mode: "number" }),
-    height: bigint("height", { mode: "number" }),
-    metadata: jsonb("metadata").default({}).notNull(),
-    uploadedById: uuid("uploaded_by_id").references(() => users.id, {
+    mimeType: text("mime_type", { length: 120 }).notNull(),
+    byteSize: integer("byte_size").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    metadata: text("metadata", { mode: "json" }).default({}).notNull(),
+    uploadedById: text("uploaded_by_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
   },
   (table) => [
     uniqueIndex("media_slug_unique").on(table.slug),

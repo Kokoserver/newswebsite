@@ -1,31 +1,26 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
-  date,
   index,
   integer,
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { articles } from "./articles";
 
-export const articleViews = pgTable(
+export const articleViews = sqliteTable(
   "article_views",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    articleId: uuid("article_id")
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    articleId: text("article_id")
       .notNull()
       .references(() => articles.id, { onDelete: "cascade" }),
-    visitorHash: varchar("visitor_hash", { length: 128 }),
+    visitorHash: text("visitor_hash", { length: 128 }),
     referrer: text("referrer"),
     userAgent: text("user_agent"),
-    viewedAt: timestamp("viewed_at", { withTimezone: true })
-      .defaultNow()
+    viewedAt: integer("viewed_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
@@ -33,14 +28,14 @@ export const articleViews = pgTable(
   ],
 );
 
-export const articleViewDailyStats = pgTable(
+export const articleViewDailyStats = sqliteTable(
   "article_view_daily_stats",
   {
-    articleId: uuid("article_id")
+    articleId: text("article_id")
       .notNull()
       .references(() => articles.id, { onDelete: "cascade" }),
-    day: date("day").notNull(),
-    views: bigint("views", { mode: "number" }).default(0).notNull(),
+    day: text("day").notNull(),
+    views: integer("views").default(0).notNull(),
     uniqueVisitors: integer("unique_visitors").default(0).notNull(),
   },
   (table) => [
@@ -52,23 +47,23 @@ export const articleViewDailyStats = pgTable(
   ],
 );
 
-export const siteEvents = pgTable(
+export const siteEvents = sqliteTable(
   "site_events",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 120 }).notNull(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    name: text("name", { length: 120 }).notNull(),
     payload: text("payload"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [index("site_events_name_created_at_idx").on(table.name, table.createdAt)],
 );
 
 export const articleViewsByDay = sql`
-  SELECT article_id, date_trunc('day', viewed_at) AS day, count(*) AS views
+  SELECT article_id, date(viewed_at / 1000, 'unixepoch') AS day, count(*) AS views
   FROM article_views
-  GROUP BY article_id, date_trunc('day', viewed_at)
+  GROUP BY article_id, date(viewed_at / 1000, 'unixepoch')
 `;
 
 export type ArticleView = typeof articleViews.$inferSelect;

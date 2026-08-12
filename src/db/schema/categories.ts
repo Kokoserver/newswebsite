@@ -1,35 +1,31 @@
 import { relations, sql } from "drizzle-orm";
 import {
-  boolean,
   check,
   index,
   integer,
-  pgTable,
+  sqliteTable,
   primaryKey,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { articles } from "./articles";
 
-export const categories = pgTable(
+export const categories = sqliteTable(
   "categories",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 160 }).notNull(),
-    slug: varchar("slug", { length: 180 }).notNull(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    name: text("name", { length: 160 }).notNull(),
+    slug: text("slug", { length: 180 }).notNull(),
     description: text("description"),
-    parentId: uuid("parent_id"),
+    parentId: text("parent_id"),
     position: integer("position").default(0).notNull(),
-    isActive: boolean("is_active").default(true).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
@@ -38,16 +34,16 @@ export const categories = pgTable(
   ],
 );
 
-export const articleCategories = pgTable(
+export const articleCategories = sqliteTable(
   "article_categories",
   {
-    articleId: uuid("article_id")
+    articleId: text("article_id")
       .notNull()
       .references(() => articles.id, { onDelete: "cascade" }),
-    categoryId: uuid("category_id")
+    categoryId: text("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "restrict" }),
-    isPrimary: boolean("is_primary").default(false).notNull(),
+    isPrimary: integer("is_primary", { mode: "boolean" }).default(false).notNull(),
   },
   (table) => [
     primaryKey({
@@ -59,22 +55,22 @@ export const articleCategories = pgTable(
   ],
 );
 
-export const navbarItems = pgTable(
+export const navbarItems = sqliteTable(
   "navbar_items",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    categoryId: uuid("category_id")
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    categoryId: text("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "cascade" }),
-    label: varchar("label", { length: 120 }).notNull(),
-    href: varchar("href", { length: 240 }).notNull(),
+    label: text("label", { length: 120 }).notNull(),
+    href: text("href", { length: 240 }).notNull(),
     position: integer("position").notNull(),
-    isActive: boolean("is_active").default(true).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [

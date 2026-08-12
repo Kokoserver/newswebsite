@@ -40,7 +40,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const { db } = await import("@/src/db");
+        const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
         const user = await db.query.users.findFirst({
           where: eq(users.email, email),

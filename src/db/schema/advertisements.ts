@@ -3,45 +3,40 @@ import {
   check,
   index,
   integer,
-  pgEnum,
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { articles } from "./articles";
 import { media } from "./media";
 
-export const advertisementStatus = pgEnum("advertisement_status", [
-  "DRAFT",
-  "ACTIVE",
-  "PAUSED",
-  "EXPIRED",
-]);
+export const advertisementStatusValues = ["DRAFT", "ACTIVE", "PAUSED", "EXPIRED"] as const;
+export type AdvertisementStatus = (typeof advertisementStatusValues)[number];
+const advertisementStatus = (name: string) => text(name, { enum: advertisementStatusValues });
 
-export const advertisementSlot = pgEnum("advertisement_slot", [
+export const advertisementSlotValues = [
   "HOMEPAGE_TOP",
   "HOMEPAGE_MIDDLE",
   "ARTICLE_INLINE",
   "ARTICLE_SIDEBAR",
   "CATEGORY_TOP",
-]);
+] as const;
+export type AdvertisementSlot = (typeof advertisementSlotValues)[number];
+const advertisementSlot = (name: string) => text(name, { enum: advertisementSlotValues });
 
-export const advertisements = pgTable(
+export const advertisements = sqliteTable(
   "advertisements",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 200 }).notNull(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    name: text("name", { length: 200 }).notNull(),
     status: advertisementStatus("status").default("DRAFT").notNull(),
     targetUrl: text("target_url").notNull(),
-    mediaId: uuid("media_id").references(() => media.id, { onDelete: "set null" }),
-    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
-    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    mediaId: text("media_id").references(() => media.id, { onDelete: "set null" }),
+    startsAt: integer("starts_at", { mode: "timestamp" }).notNull(),
+    endsAt: integer("ends_at", { mode: "timestamp" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
@@ -54,20 +49,20 @@ export const advertisements = pgTable(
   ],
 );
 
-export const advertisementAssignments = pgTable(
+export const advertisementAssignments = sqliteTable(
   "advertisement_assignments",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    advertisementId: uuid("advertisement_id")
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    advertisementId: text("advertisement_id")
       .notNull()
       .references(() => advertisements.id, { onDelete: "cascade" }),
     slot: advertisementSlot("slot").notNull(),
-    articleId: uuid("article_id").references(() => articles.id, {
+    articleId: text("article_id").references(() => articles.id, {
       onDelete: "cascade",
     }),
     position: integer("position").default(1).notNull(),
-    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
-    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    startsAt: integer("starts_at", { mode: "timestamp" }).notNull(),
+    endsAt: integer("ends_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [
     uniqueIndex("advertisement_assignments_unique").on(

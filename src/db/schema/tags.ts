@@ -1,36 +1,35 @@
 import { relations } from "drizzle-orm";
 import {
   index,
-  pgTable,
+  integer,
+  sqliteTable,
   primaryKey,
-  timestamp,
+  text,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { articles } from "./articles";
 
-export const tags = pgTable(
+export const tags = sqliteTable(
   "tags",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 100 }).notNull(),
-    slug: varchar("slug", { length: 120 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    name: text("name", { length: 100 }).notNull(),
+    slug: text("slug", { length: 120 }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [uniqueIndex("tags_slug_unique").on(table.slug)],
 );
 
-export const articleTags = pgTable(
+export const articleTags = sqliteTable(
   "article_tags",
   {
-    articleId: uuid("article_id")
+    articleId: text("article_id")
       .notNull()
       .references(() => articles.id, { onDelete: "cascade" }),
-    tagId: uuid("tag_id")
+    tagId: text("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },

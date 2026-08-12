@@ -2,23 +2,30 @@ import {
   BarChart3,
   CalendarDays,
   ChevronRight,
-  Clock3,
+  Eye,
   Mail,
   Menu,
+  MessageCircle,
   Play,
   Search,
+  ThumbsUp,
+  Video,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { getAdvertisementsBySlot } from "@/src/db/queries/advertisements";
 import { getLatestArticles, getMostReadArticles } from "@/src/db/queries/articles";
 import { getNavbarCategories } from "@/src/db/queries/categories";
 import { getHomepageData } from "@/src/db/queries/homepage";
 import { getVideoMedia } from "@/src/db/queries/media";
 import { getTrendingArticles } from "@/src/db/queries/analytics";
 
-import UserMenu from "@/components/user-menu";
+import AdvertisementSlot from "@/components/advertisement-slot";
 import NewsletterForm from "@/components/newsletter-form";
+import ShareButton from "@/components/share-button";
+import StickySiteHeader from "@/components/sticky-site-header";
+import UserMenu from "@/components/user-menu";
 import VideoPlayer from "@/components/video-player";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +42,9 @@ type HomepageItem = {
   articleTitle: string | null;
   articleSlug: string | null;
   articleExcerpt: string | null;
+  articleViewCount: number | null;
+  articleCommentCount: number | null;
+  articleLikeCount: number | null;
   articleCategoryName: string | null;
   articleCategorySlug: string | null;
   articleVideoUrl: string | null;
@@ -48,31 +58,49 @@ type HomepageItem = {
   mediaSlug: string | null;
 };
 
+type ArticleSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  publishedAt: Date | null;
+  heroImageUrl: string | null;
+  heroImageAlt: string | null;
+  categoryName: string;
+  categorySlug: string;
+};
+
+type ListedStory = {
+  id: string;
+  title: string;
+  href: string;
+  category: string;
+  categorySlug: string;
+  excerpt: string | null;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  publishedAt: Date | null;
+  seed: string;
+  commentCount?: number | null;
+  likeCount?: number | null;
+  viewCount?: number | null;
+  hasVideo?: boolean;
+};
+
 function fallbackImage(seed: string) {
   return `https://picsum.photos/seed/daily-chronicle-${seed}/1200/760`;
 }
 
-function timeAgo(date: Date | null) {
-  if (!date) {
-    return "Just now";
-  }
+function shareUrl(path: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  return new URL(path, baseUrl).toString();
+}
 
-  const minutes = Math.max(
-    1,
-    Math.floor((Date.now() - new Date(date).getTime()) / 60_000),
-  );
-
-  if (minutes < 60) {
-    return `${minutes} min ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  return `${Math.floor(hours / 24)}d ago`;
+function formatCount(count: number | null | undefined) {
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(count ?? 0);
 }
 
 function itemTitle(item: HomepageItem) {
@@ -93,6 +121,95 @@ function itemHref(item: HomepageItem) {
 
 function itemCategory(item: HomepageItem) {
   return item.articleCategoryName ?? item.sectionTitle ?? "News";
+}
+
+function itemExcerpt(item: HomepageItem) {
+  return (
+    item.dekOverride ??
+    item.articleExcerpt ??
+    "The latest details, context and reaction as this developing story continues."
+  );
+}
+
+function listedFromHomepage(item: HomepageItem, fallbackId: string): ListedStory {
+  const title = itemTitle(item);
+
+  return {
+    id: item.articleId ?? item.mediaId ?? item.itemId ?? fallbackId,
+    title,
+    href: itemHref(item),
+    category: itemCategory(item),
+    categorySlug: item.articleCategorySlug ?? item.sectionKey,
+    excerpt: itemExcerpt(item),
+    imageUrl: item.mediaUrl,
+    imageAlt: item.mediaAlt ?? title,
+    publishedAt: item.publishedAt,
+    seed: item.articleSlug ?? item.mediaSlug ?? fallbackId,
+    commentCount: item.articleCommentCount,
+    likeCount: item.articleLikeCount,
+    viewCount: item.articleViewCount,
+    hasVideo: Boolean(item.articleVideoUrl),
+  };
+}
+
+function listedFromArticle(item: ArticleSummary): ListedStory {
+  return {
+    id: item.id,
+    title: item.title,
+    href: `/articles/${item.slug}`,
+    category: item.categoryName,
+    categorySlug: item.categorySlug,
+    excerpt: item.excerpt,
+    imageUrl: item.heroImageUrl,
+    imageAlt: item.heroImageAlt ?? item.title,
+    publishedAt: item.publishedAt,
+    seed: item.slug,
+  };
+}
+
+function homepageItemFromArticle(item: ArticleSummary, sectionTitle = "Latest News"): HomepageItem {
+  return {
+    sectionKey: item.categorySlug,
+    sectionTitle,
+    sectionKind: "CATEGORY",
+    itemId: item.id,
+    itemPosition: null,
+    titleOverride: null,
+    dekOverride: null,
+    articleId: item.id,
+    articleTitle: item.title,
+    articleSlug: item.slug,
+    articleExcerpt: item.excerpt,
+    articleViewCount: null,
+    articleCommentCount: null,
+    articleLikeCount: null,
+    articleCategoryName: item.categoryName,
+    articleCategorySlug: item.categorySlug,
+    articleVideoUrl: null,
+    articleVideoPoster: null,
+    articleVideoCaption: null,
+    publishedAt: item.publishedAt,
+    mediaId: null,
+    mediaUrl: item.heroImageUrl,
+    mediaAlt: item.heroImageAlt,
+    mediaTitle: null,
+    mediaSlug: null,
+  };
+}
+
+function uniqueStories(stories: ListedStory[]) {
+  const seen = new Set<string>();
+
+  return stories.filter((story) => {
+    const key = story.href;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 function Tag({ children }: { children: React.ReactNode }) {
@@ -120,138 +237,311 @@ function StoryImage({
         alt={alt}
         width={1200}
         height={760}
-        sizes={compact ? "(max-width: 600px) 100vw, 220px" : "(max-width: 1000px) 100vw, 700px"}
+        sizes={compact ? "(max-width: 760px) 36vw, 170px" : "(max-width: 900px) 100vw, 650px"}
         priority={priority}
       />
     </div>
   );
 }
 
-function SmallStory({
-  title,
-  href,
-  category,
-  imageUrl,
-  imageAlt,
-  seed,
-  time,
-}: {
-  title: string;
-  href: string;
-  category: string;
-  imageUrl?: string | null;
-  imageAlt?: string | null;
-  seed: string;
-  time: string;
-}) {
+function TopStory({ item }: { item: HomepageItem }) {
+  const title = itemTitle(item);
+  const href = itemHref(item);
+
   return (
-    <article className="small-story">
-      <Link href={href} aria-label={title}>
-        <StoryImage src={imageUrl} alt={imageAlt ?? title} seed={seed} compact />
-      </Link>
-      <div>
-        <Tag>{category}</Tag>
-        <h3>
-          <Link href={href}>{title}</Link>
-        </h3>
-        <p>Updated {time}</p>
+    <article className="lead-banner">
+      <h1>
+        <Link href={href}>{title}</Link>
+      </h1>
+      {item.articleVideoUrl ? (
+        <VideoPlayer
+          src={item.articleVideoUrl}
+          poster={item.articleVideoPoster ?? item.mediaUrl}
+          title={title}
+          caption={item.articleVideoCaption}
+          autoPlay
+          loop
+        />
+      ) : (
+        <Link href={href} aria-label={title}>
+          <StoryImage src={item.mediaUrl} alt={item.mediaAlt ?? title} seed={item.articleSlug ?? "hero"} priority />
+        </Link>
+      )}
+      <p>{itemExcerpt(item)}</p>
+      <div className="lead-banner-actions" aria-label="Story actions">
+        <ShareButton className="share-action" title={title} url={shareUrl(href)}>
+          Share
+        </ShareButton>
+        <strong>
+          <MessageCircle size={15} fill="currentColor" /> {formatCount(item.articleCommentCount)} comments
+        </strong>
+        <strong>
+          <ThumbsUp size={15} fill="currentColor" /> {formatCount(item.articleLikeCount)} likes
+        </strong>
+        <strong>
+          <Eye size={15} /> {formatCount(item.articleViewCount)} views
+        </strong>
+        {item.articleVideoUrl ? (
+          <strong>
+            <Video size={15} fill="currentColor" /> 1 video
+          </strong>
+        ) : null}
       </div>
     </article>
   );
 }
 
-function SectionBlock({
+function ListedStoryCard({ story, featured = false }: { story: ListedStory; featured?: boolean }) {
+  return (
+    <article className={`listed-story ${featured ? "featured" : ""}`}>
+      <Link href={story.href} aria-label={story.title}>
+        <StoryImage src={story.imageUrl} alt={story.imageAlt ?? story.title} seed={story.seed} compact />
+      </Link>
+      <div className="listed-story-body">
+        <Tag>{story.category}</Tag>
+        <h2>
+          <Link href={story.href}>{story.title}</Link>
+        </h2>
+        <p>{story.excerpt ?? "A concise update with the context readers need now."}</p>
+        <StoryActionRow story={story} compact />
+      </div>
+    </article>
+  );
+}
+
+function StoryActionRow({ story, compact = false }: { story: ListedStory; compact?: boolean }) {
+  return (
+    <div className={`story-actions ${compact ? "compact" : ""}`}>
+      <span>
+        <MessageCircle size={13} fill="currentColor" />{" "}
+        {story.commentCount == null ? "comments" : `${formatCount(story.commentCount)} comments`}
+      </span>
+      {story.hasVideo ? (
+        <span>
+          <Video size={13} fill="currentColor" /> 1 video
+        </span>
+      ) : null}
+      <ShareButton className="story-share-action" title={story.title} url={shareUrl(story.href)}>
+        share
+      </ShareButton>
+    </div>
+  );
+}
+
+function SectionLeadStory({ story }: { story: ListedStory }) {
+  return (
+    <article className="section-lead-banner">
+      <h3>
+        <Link href={story.href}>{story.title}</Link>
+      </h3>
+      <Link href={story.href} aria-label={story.title}>
+        <StoryImage src={story.imageUrl} alt={story.imageAlt ?? story.title} seed={story.seed} />
+      </Link>
+      <p>{story.excerpt ?? "A major update with the pictures, context and key details readers need."}</p>
+      <StoryActionRow story={story} />
+    </article>
+  );
+}
+
+function SectionRiver({
   title,
   sectionKey,
-  lead,
-  list,
+  stories,
+  href,
 }: {
   title: string;
   sectionKey: string;
-  lead: HomepageItem;
-  list: HomepageItem[];
+  stories: ListedStory[];
+  href?: string;
 }) {
-  const leadTitle = itemTitle(lead);
-  const leadHref = itemHref(lead);
+  const [lead, ...rest] = stories;
+  const sectionHref = href ?? `/section/${sectionKey}`;
+
+  if (!lead) {
+    return null;
+  }
 
   return (
-    <section className="section-block">
-      <div className="block-heading">
-        <h2>{title}</h2>
-        <Link href={`/section/${sectionKey}`}>
-          View all <ChevronRight size={14} />
+    <section className="section-river">
+      <div className="section-river-heading">
+        <h2>
+          <span>Exclusive</span> {title}
+        </h2>
+        <Link href={sectionHref}>
+          More <ChevronRight size={14} />
         </Link>
       </div>
-      <div className="section-grid">
-        <article className="section-lead">
-          <StoryImage
-            src={lead.mediaUrl}
-            alt={lead.mediaAlt ?? leadTitle}
-            seed={lead.articleSlug ?? sectionKey}
-          />
-          <Tag>{title}</Tag>
-          <h3>
-            <Link href={leadHref}>{leadTitle}</Link>
-          </h3>
-          <p>
-            {lead.dekOverride ??
-              lead.articleExcerpt ??
-              "A fast-moving story with updates, background and the detail readers need to understand what happens next."}
-          </p>
-        </article>
-        <div className="section-list">
-          {list.map((item) => {
-            const itemHrefValue = itemHref(item);
-            const itemTitleValue = itemTitle(item);
-
-            return (
-              <article key={`${item.articleId ?? item.mediaId ?? itemTitleValue}`}>
-                <h3>
-                  <Link href={itemHrefValue}>{itemTitleValue}</Link>
-                </h3>
-                <p>
-                  <Clock3 size={12} /> Updated {timeAgo(item.publishedAt)}
-                </p>
-              </article>
-            );
-          })}
-        </div>
+      <SectionLeadStory story={lead} />
+      <div className="section-card-grid">
+        {rest.slice(0, 6).map((story) => (
+          <ListedStoryCard story={story} key={story.id} />
+        ))}
       </div>
     </section>
   );
 }
 
+function RailStory({ story }: { story: ListedStory }) {
+  return (
+    <article className="rail-story">
+      <Link href={story.href} aria-label={story.title}>
+        <StoryImage src={story.imageUrl} alt={story.imageAlt ?? story.title} seed={story.seed} compact />
+      </Link>
+      <h3>
+        <Link href={story.href}>{story.title}</Link>
+      </h3>
+    </article>
+  );
+}
+
+function RailSection({
+  title,
+  href,
+  stories,
+}: {
+  title: string;
+  href: string;
+  stories: ListedStory[];
+}) {
+  if (stories.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rail-section">
+      <div className="rail-section-heading">
+        <h2>
+          <span>More</span> {title}
+        </h2>
+        <Link href={href}>More</Link>
+      </div>
+      {stories.slice(0, 4).map((story) => (
+        <RailStory story={story} key={story.id} />
+      ))}
+    </section>
+  );
+}
+
 export default async function Home() {
-  const [navItems, homepageData, latestArticles, mostReadArticles, trendingArticles, videos] =
-    await Promise.all([
+  const [
+    navItems,
+    homepageData,
+    latestArticles,
+    mostReadArticles,
+    trendingArticles,
+    videos,
+    homepageTopAds,
+    homepageMiddleAds,
+  ] = await Promise.all([
       getNavbarCategories(),
       getHomepageData(),
-      getLatestArticles(20),
-      getMostReadArticles(5),
-      getTrendingArticles(6),
+      getLatestArticles(48),
+      getMostReadArticles(8),
+      getTrendingArticles(8),
       getVideoMedia(6),
+      getAdvertisementsBySlot("HOMEPAGE_TOP", 6),
+      getAdvertisementsBySlot("HOMEPAGE_MIDDLE", 6),
     ]);
 
   const sectionByKey = new Map(homepageData.map((section) => [section.key, section]));
-  const heroSection = sectionByKey.get("hero");
-  const featuredSection = sectionByKey.get("featured");
+  const heroItems = sectionByKey.get("hero")?.items ?? [];
+  const featuredItems = sectionByKey.get("featured")?.items ?? [];
   const categorySections = homepageData.filter((section) => section.kind === "CATEGORY");
-  const heroItems = heroSection?.items ?? [];
-  const heroLead = heroItems[0] ?? null;
-  const topGrid = heroItems.slice(1, 5);
-  const feedItems = latestArticles.slice(8);
-  const picks = featuredSection?.items ?? [];
-  const pulseItems = latestArticles.slice(0, 5);
-  const latestRiver = latestArticles.slice(0, 8);
+  const latestStories = latestArticles.map(listedFromArticle);
+  const fallbackHeroItems = latestArticles.slice(0, 5).map((item) => homepageItemFromArticle(item));
+  const displayHeroItems = heroItems.length > 0 ? heroItems : fallbackHeroItems;
+  const heroLead = displayHeroItems[0] ?? null;
+  const curatedStories = homepageData.flatMap((section) =>
+    section.items.map((item, index) => listedFromHomepage(item, `${section.key}-${index}`)),
+  );
+  const featuredStories = uniqueStories([
+    ...featuredItems.map((item, index) => listedFromHomepage(item, `featured-${index}`)),
+    ...latestStories.slice(0, 4),
+  ]);
+  const visibleSectionStories = 7;
+  const sectionStories = (section: (typeof categorySections)[number]) => {
+    const curated = section.items.map((item, index) =>
+      listedFromHomepage(item, `${section.key}-${index}`),
+    );
+    const sameCategory = latestStories.filter((story) => story.categorySlug === section.key);
+
+    return uniqueStories([...curated, ...sameCategory, ...latestStories]).slice(0, visibleSectionStories);
+  };
+  const pulseItems = latestStories.slice(0, 5);
+  const railStories = uniqueStories([...curatedStories, ...latestStories]).slice(0, 10);
+  const billboardAd = homepageTopAds[0] ?? null;
+  const railAds = [...homepageMiddleAds, ...homepageTopAds.slice(1)];
+  const railAdAt = (index: number) => {
+    if (railAds.length === 0) {
+      return null;
+    }
+
+    return railAds[index % railAds.length];
+  };
+  const sidebarCategoryMap = new Map<
+    string,
+    { id: string; title: string; href: string; stories: ListedStory[] }
+  >();
+
+  function addSidebarStory(story: ListedStory) {
+    const id = story.categorySlug || story.category.toLowerCase().replaceAll(" ", "-");
+    const group = sidebarCategoryMap.get(id) ?? {
+      id,
+      title: story.category,
+      href: `/section/${id}`,
+      stories: [],
+    };
+
+    if (!group.stories.some((item) => item.href === story.href)) {
+      group.stories.push(story);
+    }
+
+    sidebarCategoryMap.set(id, group);
+  }
+
+  categorySections.forEach((section) => {
+    section.items
+      .map((item, index) => listedFromHomepage(item, `${section.key}-sidebar-${index}`))
+      .forEach(addSidebarStory);
+  });
+  latestStories.forEach(addSidebarStory);
+
+  const railSectionGroups = [
+    {
+      id: "dont-miss",
+      title: "Don't Miss",
+      href: "/latest",
+      stories: railStories.slice(0, 6),
+    },
+    ...Array.from(sidebarCategoryMap.values()),
+    {
+      id: "more-latest",
+      title: "More Latest",
+      href: "/latest",
+      stories: latestStories.slice(10, 18),
+    },
+  ];
 
   return (
-    <main className="news-site">
-      <div className="ad-strip">Advertisement · Your message here</div>
-
+    <main className="news-site tabloid-home">
       <header className="news-header">
-        <button aria-label="Open menu">
-          <Menu size={20} />
-        </button>
+        <details className="desktop-menu">
+          <summary aria-label="Open menu">
+            <Menu size={20} />
+          </summary>
+          <div className="desktop-menu-panel">
+            <strong>Sections</strong>
+            <nav aria-label="Expanded sections menu">
+              <Link href="/latest">Latest News</Link>
+              <Link href="/watch">Watch</Link>
+              {navItems.map((item) => (
+                <Link href={item.href} key={item.id}>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </details>
         <Link href="/" className="news-logo">
           Daily Chronicle
         </Link>
@@ -263,194 +553,115 @@ export default async function Home() {
         </div>
       </header>
 
-      <nav className="news-nav" aria-label="Primary navigation">
-        {navItems.map((item) => (
-          <Link href={item.href} key={item.id}>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <StickySiteHeader>
+        <nav className="news-nav" aria-label="Primary navigation">
+          {navItems.map((item) => (
+            <Link href={item.href} key={item.id}>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </StickySiteHeader>
 
-      <div className="news-pulse" aria-label="News pulse">
+      <AdvertisementSlot ad={billboardAd} variant="billboard" />
+
+      <section className="headline-strip" aria-label="Breaking headlines">
         {pulseItems.map((item) => (
-          <Link className="news-pulse-tile" href={`/articles/${item.slug}`} key={item.id}>
-            <span>{item.categoryName}</span>
-            <strong>{item.title}</strong>
-            <em>Live</em>
+          <Link href={item.href} key={item.id}>
+            <strong>{item.category}</strong>
+            <span>{item.title}</span>
           </Link>
         ))}
-      </div>
+      </section>
 
-      <section className="hero-portal">
-        <article className="portal-main">
-          {heroLead ? (
-            <>
-              {heroLead.articleVideoUrl ? (
-                <VideoPlayer
-                  src={heroLead.articleVideoUrl}
-                  poster={heroLead.articleVideoPoster ?? heroLead.mediaUrl}
-                  title={itemTitle(heroLead)}
-                  caption={heroLead.articleVideoCaption}
-                  autoPlay
-                  loop
-                />
-              ) : (
-                <StoryImage
-                  src={heroLead.mediaUrl}
-                  alt={heroLead.mediaAlt ?? itemTitle(heroLead)}
-                  seed={heroLead.articleSlug ?? "hero"}
-                  priority
-                />
-              )}
-              <Tag>Top Story</Tag>
-              <h1>
-                <Link href={itemHref(heroLead)}>{itemTitle(heroLead)}</Link>
-              </h1>
-              <p>
-                {heroLead.dekOverride ??
-                  heroLead.articleExcerpt ??
-                  "Exclusive details, photographs and eyewitness accounts tell the inside story behind the moment dominating conversation today."}
-              </p>
-            </>
-          ) : null}
-        </article>
+      {heroLead ? (
+        <section className="top-news-grid">
+          <TopStory item={heroLead} />
+        </section>
+      ) : null}
 
-        <div className="portal-stack">
-          {topGrid.map((item) => (
-            <SmallStory
-              key={item.articleId ?? item.itemId}
-              title={itemTitle(item)}
-              href={itemHref(item)}
-              category={itemCategory(item)}
-              imageUrl={item.mediaUrl}
-              imageAlt={item.mediaAlt}
-              seed={item.articleSlug ?? item.mediaSlug ?? "story"}
-              time={timeAgo(item.publishedAt)}
+      <div className="home-river-layout">
+        <div className="home-river">
+          <div className="river-heading">
+            <h2>Today’s headlines</h2>
+            <Link href="/latest">
+              Latest news <ChevronRight size={14} />
+            </Link>
+          </div>
+          <SectionRiver
+            title="Top Stories"
+            sectionKey="latest"
+            stories={featuredStories}
+            href="/latest"
+          />
+          {categorySections.map((section) => (
+            <SectionRiver
+              title={section.title}
+              sectionKey={section.key}
+              stories={sectionStories(section)}
+              key={section.id}
             />
           ))}
+          <SectionRiver
+            title="Latest News"
+            sectionKey="latest"
+            stories={latestStories.slice(5)}
+            href="/latest"
+          />
         </div>
 
-        <aside className="right-rail">
-          <div className="widget">
-            <h2>
-              <BarChart3 size={16} /> Trending
-            </h2>
-            <ol>
-              {trendingArticles.map((item) => (
-                <li key={item.id}>
-                  <Link href={`/articles/${item.slug}`}>{item.title}</Link>
-                </li>
+        <aside className="home-side-rail">
+          <div className="home-side-rail-inner">
+            <div className="rail-widget trending-widget">
+              <h2>
+                <BarChart3 size={15} /> Trending now
+              </h2>
+              <ol className="trending-ranking">
+                {trendingArticles.map((item, index) => (
+                  <li key={item.id}>
+                    <span>{index + 1}</span>
+                    <Link href={`/articles/${item.slug}`}>{item.title}</Link>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <AdvertisementSlot ad={railAdAt(0)} variant="rail" />
+            <div className="rail-widget most-read-widget">
+              <h2>Most read</h2>
+              <ol className="most-read-ranking">
+                {mostReadArticles.map((item, index) => (
+                  <li className="ranking" key={item.id}>
+                    <span>{index + 1}</span>
+                    <Link href={`/articles/${item.slug}`}>{item.title}</Link>
+                    <strong>{item.viewCount.toLocaleString()}</strong>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="rail-widget">
+              <h2>
+                <CalendarDays size={15} /> Editor’s picks
+              </h2>
+              {railStories.slice(0, 5).map((story) => (
+                <RailStory story={story} key={story.id} />
               ))}
-            </ol>
-          </div>
-          <div className="widget">
-            <h2>Most read</h2>
-            {mostReadArticles.map((item, index) => (
-              <p className="ranking" key={item.id}>
-                <span>{index + 1}</span>
-                <Link href={`/articles/${item.slug}`}>{item.title}</Link>
-                <strong>{item.viewCount.toLocaleString()}</strong>
-              </p>
-            ))}
-          </div>
-        </aside>
-      </section>
-
-      <section className="latest-river">
-        <div className="block-heading">
-          <h2>Latest News</h2>
-          <Link href="/latest">
-            More headlines <ChevronRight size={14} />
-          </Link>
-        </div>
-        <div className="river-grid">
-          {latestRiver.map((item) => (
-            <SmallStory
-              key={item.id}
-              title={item.title}
-              href={`/articles/${item.slug}`}
-              category={item.categoryName}
-              imageUrl={item.heroImageUrl}
-              imageAlt={item.heroImageAlt}
-              seed={item.slug}
-              time={timeAgo(item.publishedAt)}
-            />
-          ))}
-        </div>
-      </section>
-
-      <div className="content-layout">
-        <div>
-          {categorySections.map((section) => {
-            const [lead, ...list] = section.items;
-
-            if (!lead) {
-              return null;
-            }
-
-            return (
-              <SectionBlock
-                key={section.id}
-                title={section.title}
-                sectionKey={section.key}
-                lead={lead}
-                list={list}
-              />
-            );
-          })}
-
-          {feedItems.length > 0 ? (
-            <section className="feed-block">
-              <div className="block-heading">
-                <h2>More From Daily Chronicle</h2>
-                <Link href="/latest">
-                  Full feed <ChevronRight size={14} />
-                </Link>
+            </div>
+            <div className="rail-widget newsletter-card">
+              <span className="newsletter-icon">
+                <Mail size={20} />
+              </span>
+              <h2>Get the Daily Brief</h2>
+              <p>Top headlines, features and must-read stories every morning.</p>
+              <NewsletterForm />
+            </div>
+            {railSectionGroups.map((section, index) => (
+              <div className="rail-section-stack" key={section.id}>
+                {index > 0 && index % 6 === 0 ? (
+                  <AdvertisementSlot ad={railAdAt(Math.floor(index / 2))} variant="rail" />
+                ) : null}
+                <RailSection title={section.title} href={section.href} stories={section.stories} />
               </div>
-              {feedItems.map((item) => (
-                <article className="feed-item" key={item.id}>
-                  <StoryImage
-                    src={item.heroImageUrl}
-                    alt={item.heroImageAlt ?? item.title}
-                    seed={item.slug}
-                    compact
-                  />
-                  <div>
-                    <Tag>{item.categoryName}</Tag>
-                    <h3>
-                      <Link href={`/articles/${item.slug}`}>{item.title}</Link>
-                    </h3>
-                    <p>
-                      {item.excerpt ??
-                        "A concise update with context, reaction and the background needed to follow the story as it develops."}
-                    </p>
-                  </div>
-                  <span className="feed-time">{timeAgo(item.publishedAt)}</span>
-                </article>
-              ))}
-            </section>
-          ) : null}
-        </div>
-
-        <aside className="sticky-rail">
-          <div className="widget">
-            <h2>
-              <CalendarDays size={16} /> Editor’s picks
-            </h2>
-            {picks.map((item) => (
-              <p className="schedule" key={item.articleId ?? item.itemId}>
-                <Link href={itemHref(item)}>{itemTitle(item)}</Link>
-                <strong>Updated</strong>
-              </p>
             ))}
-          </div>
-          <div className="widget newsletter-card">
-            <span className="newsletter-icon">
-              <Mail size={20} />
-            </span>
-            <h2>Get the Daily Brief</h2>
-            <p>Top headlines, features and must-read stories every morning.</p>
-            <NewsletterForm />
           </div>
         </aside>
       </div>

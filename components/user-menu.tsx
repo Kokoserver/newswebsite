@@ -21,6 +21,8 @@ export default async function UserMenu({ size = 18 }: UserMenuProps) {
 
   const displayName = user.name ?? user.email;
   const firstName = displayName.split(" ")[0];
+  const canManageAds =
+    user.role === "SUPER_ADMIN" || user.role === "ADMIN" || user.role === "EDITOR";
 
   return (
     <details className="user-menu">
@@ -30,6 +32,7 @@ export default async function UserMenu({ size = 18 }: UserMenuProps) {
       </summary>
       <div className="user-menu-dropdown">
         <span>{displayName}</span>
+        {canManageAds ? <Link href="/admin/ads">Manage ads</Link> : null}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- sign-out is an API route, not an app page */}
         <a href="/api/auth/signout">Sign out</a>
       </div>

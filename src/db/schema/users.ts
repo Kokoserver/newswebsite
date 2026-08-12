@@ -1,66 +1,54 @@
 import { relations } from "drizzle-orm";
 import {
-  boolean,
   integer,
-  pgEnum,
-  pgTable,
+  sqliteTable,
   primaryKey,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
-export const userRole = pgEnum("user_role", [
-  "SUPER_ADMIN",
-  "ADMIN",
-  "EDITOR",
-  "AUTHOR",
-  "READER",
-]);
+export const userRoleValues = ["SUPER_ADMIN", "ADMIN", "EDITOR", "AUTHOR", "READER"] as const;
+export type UserRole = (typeof userRoleValues)[number];
+const userRole = (name: string) => text(name, { enum: userRoleValues });
 
-export const userStatus = pgEnum("user_status", [
-  "ACTIVE",
-  "INVITED",
-  "SUSPENDED",
-  "DISABLED",
-]);
+export const userStatusValues = ["ACTIVE", "INVITED", "SUSPENDED", "DISABLED"] as const;
+export type UserStatus = (typeof userStatusValues)[number];
+const userStatus = (name: string) => text(name, { enum: userStatusValues });
 
-export const users = pgTable(
+export const users = sqliteTable(
   "users",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 200 }),
-    email: varchar("email", { length: 320 }).notNull(),
-    emailVerified: timestamp("email_verified", { withTimezone: true }),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    name: text("name", { length: 200 }),
+    email: text("email", { length: 320 }).notNull(),
+    emailVerified: integer("email_verified", { mode: "timestamp" }),
     image: text("image"),
     passwordHash: text("password_hash"),
     role: userRole("role").default("AUTHOR").notNull(),
     status: userStatus("status").default("INVITED").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
 );
 
-export const accounts = pgTable(
+export const accounts = sqliteTable(
   "accounts",
   {
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    type: varchar("type", { length: 255 }).notNull(),
-    provider: varchar("provider", { length: 255 }).notNull(),
-    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    type: text("type", { length: 255 }).notNull(),
+    provider: text("provider", { length: 255 }).notNull(),
+    providerAccountId: text("provider_account_id", { length: 255 }).notNull(),
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
     expires_at: integer("expires_at"),
-    token_type: varchar("token_type", { length: 255 }),
+    token_type: text("token_type", { length: 255 }),
     scope: text("scope"),
     id_token: text("id_token"),
     session_state: text("session_state"),
@@ -73,24 +61,24 @@ export const accounts = pgTable(
   ],
 );
 
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
-    sessionToken: varchar("session_token", { length: 255 }).primaryKey(),
-    userId: uuid("user_id")
+    sessionToken: text("session_token", { length: 255 }).primaryKey(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    expires: timestamp("expires", { withTimezone: true }).notNull(),
+    expires: integer("expires", { mode: "timestamp" }).notNull(),
   },
   (table) => [uniqueIndex("sessions_session_token_unique").on(table.sessionToken)],
 );
 
-export const verificationTokens = pgTable(
+export const verificationTokens = sqliteTable(
   "verification_tokens",
   {
-    identifier: varchar("identifier", { length: 320 }).notNull(),
-    token: varchar("token", { length: 255 }).notNull(),
-    expires: timestamp("expires", { withTimezone: true }).notNull(),
+    identifier: text("identifier", { length: 320 }).notNull(),
+    token: text("token", { length: 255 }).notNull(),
+    expires: integer("expires", { mode: "timestamp" }).notNull(),
   },
   (table) => [
     primaryKey({
@@ -100,20 +88,37 @@ export const verificationTokens = pgTable(
   ],
 );
 
-export const authenticators = pgTable(
-  "authenticators",
+export const passwordResetTokens = sqliteTable(
+  "password_reset_tokens",
   {
-    credentialID: varchar("credential_id", { length: 255 }).notNull().unique(),
-    userId: uuid("user_id")
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    tokenHash: text("token_hash", { length: 64 }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    usedAt: integer("used_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [uniqueIndex("password_reset_tokens_token_hash_unique").on(table.tokenHash)],
+);
+
+export const authenticators = sqliteTable(
+  "authenticators",
+  {
+    credentialID: text("credential_id", { length: 255 }).notNull().unique(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerAccountId: text("provider_account_id", { length: 255 }).notNull(),
     credentialPublicKey: text("credential_public_key").notNull(),
     counter: integer("counter").notNull(),
-    credentialDeviceType: varchar("credential_device_type", {
+    credentialDeviceType: text("credential_device_type", {
       length: 255,
     }).notNull(),
-    credentialBackedUp: boolean("credential_backed_up").notNull(),
+    credentialBackedUp: integer("credential_backed_up", { mode: "boolean" }).notNull(),
     transports: text("transports"),
   },
   (table) => [
@@ -128,6 +133,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
   authenticators: many(authenticators),
+  passwordResetTokens: many(passwordResetTokens),
 }));
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -144,7 +150,15 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   }),
 }));
 
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Account = typeof accounts.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

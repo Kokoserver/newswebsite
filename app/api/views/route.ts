@@ -36,7 +36,8 @@ export async function POST(request: Request) {
     return new NextResponse("Bad request", { status: 400 });
   }
 
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
   const { articleViewDailyStats, articleViews, articles } = await import("@/src/db/schema");
 
   const article = await db.query.articles.findFirst({
@@ -56,6 +57,9 @@ export async function POST(request: Request) {
   let isNewVisitor = true;
 
   if (visitorHash) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     const [existingView] = await db
       .select({ id: articleViews.id })
       .from(articleViews)
@@ -63,7 +67,7 @@ export async function POST(request: Request) {
         and(
           eq(articleViews.articleId, payload.articleId),
           eq(articleViews.visitorHash, visitorHash),
-          gte(articleViews.viewedAt, sql`date_trunc('day', now())`),
+          gte(articleViews.viewedAt, todayStart),
         ),
       )
       .limit(1);

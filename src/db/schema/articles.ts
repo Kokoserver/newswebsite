@@ -1,31 +1,21 @@
 import { relations, sql } from "drizzle-orm";
 import {
-  boolean,
   check,
   index,
   integer,
-  jsonb,
-  pgEnum,
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
 import { media } from "./media";
 import { users } from "./users";
 
-export const articleStatus = pgEnum("article_status", [
-  "DRAFT",
-  "IN_REVIEW",
-  "SCHEDULED",
-  "PUBLISHED",
-  "ARCHIVED",
-]);
+export const articleStatusValues = ["DRAFT", "IN_REVIEW", "SCHEDULED", "PUBLISHED", "ARCHIVED"] as const;
+export type ArticleStatus = (typeof articleStatusValues)[number];
+const articleStatus = (name: string) => text(name, { enum: articleStatusValues });
 
-export const articleType = pgEnum("article_type", [
+export const articleTypeValues = [
   "STANDARD",
   "BREAKING",
   "LIVE_BLOG",
@@ -37,53 +27,55 @@ export const articleType = pgEnum("article_type", [
   "REVIEW",
   "EXPLAINER",
   "SPONSORED",
-]);
+] as const;
+export type ArticleType = (typeof articleTypeValues)[number];
+const articleType = (name: string) => text(name, { enum: articleTypeValues });
 
-export const articles = pgTable(
+export const articles = sqliteTable(
   "articles",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    title: varchar("title", { length: 300 }).notNull(),
-    slug: varchar("slug", { length: 320 }).notNull(),
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    title: text("title", { length: 300 }).notNull(),
+    slug: text("slug", { length: 320 }).notNull(),
     subtitle: text("subtitle"),
     excerpt: text("excerpt"),
-    content: jsonb("content").notNull(),
+    content: text("content", { mode: "json" }).notNull(),
     renderedContent: text("rendered_content"),
     status: articleStatus("status").default("DRAFT").notNull(),
     type: articleType("type").default("STANDARD").notNull(),
-    authorId: uuid("author_id")
+    authorId: text("author_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    heroImageId: uuid("hero_image_id").references(() => media.id, {
+    heroImageId: text("hero_image_id").references(() => media.id, {
       onDelete: "set null",
     }),
-    heroVideoId: uuid("hero_video_id").references(() => media.id, {
+    heroVideoId: text("hero_video_id").references(() => media.id, {
       onDelete: "set null",
     }),
-    mobileHeroImageId: uuid("mobile_hero_image_id").references(() => media.id, {
+    mobileHeroImageId: text("mobile_hero_image_id").references(() => media.id, {
       onDelete: "set null",
     }),
-    socialImageId: uuid("social_image_id").references(() => media.id, {
+    socialImageId: text("social_image_id").references(() => media.id, {
       onDelete: "set null",
     }),
-    seoTitle: varchar("seo_title", { length: 70 }),
-    seoDescription: varchar("seo_description", { length: 170 }),
+    seoTitle: text("seo_title", { length: 70 }),
+    seoDescription: text("seo_description", { length: 170 }),
     canonicalUrl: text("canonical_url"),
-    sourceName: varchar("source_name", { length: 200 }),
+    sourceName: text("source_name", { length: 200 }),
     sourceUrl: text("source_url"),
-    isFeatured: boolean("is_featured").default(false).notNull(),
-    allowComments: boolean("allow_comments").default(true).notNull(),
+    isFeatured: integer("is_featured", { mode: "boolean" }).default(false).notNull(),
+    allowComments: integer("allow_comments", { mode: "boolean" }).default(true).notNull(),
     readingMinutes: integer("reading_minutes").default(1).notNull(),
     viewCount: integer("view_count").default(0).notNull(),
-    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
-    publishedAt: timestamp("published_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+    publishedAt: integer("published_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
   },
   (table) => [
     uniqueIndex("articles_slug_unique").on(table.slug),
@@ -105,20 +97,20 @@ export const articles = pgTable(
   ],
 );
 
-export const articleRevisions = pgTable(
+export const articleRevisions = sqliteTable(
   "article_revisions",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    articleId: uuid("article_id")
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    articleId: text("article_id")
       .notNull()
       .references(() => articles.id, { onDelete: "cascade" }),
-    editorId: uuid("editor_id").references(() => users.id, {
+    editorId: text("editor_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    title: varchar("title", { length: 300 }).notNull(),
-    content: jsonb("content").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    title: text("title", { length: 300 }).notNull(),
+    content: text("content", { mode: "json" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [

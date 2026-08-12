@@ -1,10 +1,12 @@
 import { and, asc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { alias } from "drizzle-orm/sqlite-core";
 import { unstable_cache } from "next/cache";
 
-import { db } from "@/src/db";
+import { getDb } from "@/src/db";
 import {
   articleCategories,
+  commentReactions,
+  comments,
   articles,
   categories,
   homepageItems,
@@ -18,6 +20,8 @@ const heroVideo = alias(media, "article_hero_video");
 
 const getHomepageDataCached = unstable_cache(
   async () => {
+    const db = await getDb();
+    const now = new Date();
     const rows = await db
       .select({
         sectionId: homepageSections.id,
@@ -33,6 +37,23 @@ const getHomepageDataCached = unstable_cache(
         articleTitle: articles.title,
         articleSlug: articles.slug,
         articleExcerpt: articles.excerpt,
+        articleViewCount: articles.viewCount,
+        articleCommentCount: sql<number>`(
+          select count(*)
+          from ${comments}
+          where ${comments.articleId} = ${articles.id}
+            and ${comments.status} = 'APPROVED'
+            and ${comments.deletedAt} is null
+        )`,
+        articleLikeCount: sql<number>`(
+          select count(*)
+          from ${commentReactions}
+          inner join ${comments} on ${commentReactions.commentId} = ${comments.id}
+          where ${comments.articleId} = ${articles.id}
+            and ${comments.status} = 'APPROVED'
+            and ${comments.deletedAt} is null
+            and ${commentReactions.reactionType} = 'LIKE'
+        )`,
         publishedAt: articles.publishedAt,
         articleCategoryName: categories.name,
         articleCategorySlug: categories.slug,
@@ -57,8 +78,8 @@ const getHomepageDataCached = unstable_cache(
       .leftJoin(media, eq(homepageItems.mediaId, media.id))
       .where(
         and(
-          or(isNull(homepageItems.startsAt), lte(homepageItems.startsAt, sql`now()`)),
-          or(isNull(homepageItems.endsAt), gte(homepageItems.endsAt, sql`now()`)),
+          or(isNull(homepageItems.startsAt), lte(homepageItems.startsAt, now)),
+          or(isNull(homepageItems.endsAt), gte(homepageItems.endsAt, now)),
         ),
       )
       .orderBy(asc(homepageSections.position), asc(homepageItems.position));
@@ -111,6 +132,7 @@ export async function getHomepageData() {
 }
 
 export async function getHomepageSectionItems(sectionKey: string) {
+  const db = await getDb();
   return db
     .select({
       id: homepageItems.id,

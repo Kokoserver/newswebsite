@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
+const distDir = process.env.NEXT_DIST_DIR ?? (isProduction ? ".next" : ".next-local");
 
 const bunnyPullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
@@ -81,7 +82,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
+  distDir,
   images: {
     remotePatterns,
     formats: ["image/avif", "image/webp"],

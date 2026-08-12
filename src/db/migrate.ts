@@ -1,39 +1,43 @@
 import "dotenv/config";
 
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import { createClient } from "@libsql/client";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 
-const databaseUrl = process.env.DATABASE_URL;
+import { ensureFileDatabaseDirectory, getDatabaseConfig } from "./config";
+import * as schema from "./schema";
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
+const databaseConfig = getDatabaseConfig();
+ensureFileDatabaseDirectory(databaseConfig.url);
+
+export async function migrateDatabase(database: LibSQLDatabase<typeof schema>) {
+  await migrate(database, {
+    migrationsFolder: "./drizzle",
+  });
 }
 
-const databaseConnectionUrl = databaseUrl;
-
 async function runMigrations() {
-  const connection = postgres(databaseConnectionUrl, {
-    max: 1,
-    prepare: false,
+  const connection = createClient({
+    url: databaseConfig.url,
+    authToken: databaseConfig.authToken,
   });
 
-  const database = drizzle(connection);
+  const database = drizzle(connection, { schema });
 
   try {
     console.log("Applying database migrations...");
 
-    await migrate(database, {
-      migrationsFolder: "./drizzle",
-    });
+    await migrateDatabase(database);
 
     console.log("Database migrations completed");
   } catch (error) {
     console.error("Database migration failed", error);
     process.exitCode = 1;
   } finally {
-    await connection.end();
+    connection.close();
   }
 }
 
-void runMigrations();
+if (process.argv[1]?.endsWith("migrate.ts")) {
+  void runMigrations();
+}

@@ -1,14 +1,36 @@
 import { Home, Search } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import SignupForm from "@/components/signup-form";
 import UserMenu from "@/components/user-menu";
+import { getSession } from "@/src/session";
 
 export const dynamic = "force-dynamic";
 
-export default function SignupPage() {
+type SignupPageProps = {
+  searchParams?: Promise<{
+    callbackUrl?: string;
+  }>;
+};
+
+export default async function SignupPage({ searchParams }: SignupPageProps) {
+  const params = await searchParams;
+  const rawCallbackUrl = params?.callbackUrl;
+  const callbackUrl =
+    rawCallbackUrl && rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
+      ? rawCallbackUrl
+      : "/";
+  const loginUrl =
+    callbackUrl === "/" ? "/login" : `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  const session = await getSession();
+
+  if (session?.user?.id || session?.user?.email) {
+    redirect(callbackUrl);
+  }
+
   return (
-    <main className="route-page">
+    <main className="route-page auth-route-page">
       <header className="route-header">
         <Link href="/" className="route-brand">
           Daily Chronicle
@@ -24,17 +46,40 @@ export default function SignupPage() {
         </div>
       </header>
 
-      <div className="route-kicker">Member</div>
-      <h1>Create an account</h1>
-      <p>Join Daily Chronicle to comment on stories and follow the conversation.</p>
+      <section className="auth-hero">
+        <div className="auth-hero-copy">
+          <div className="route-kicker">Member access</div>
+          <h1>Create your Daily Chronicle account</h1>
+          <p>
+            Sign up to comment on stories, react to reader opinions, and continue
+            directly from the article that brought you here.
+          </p>
+        </div>
 
-      <div className="auth-card">
-        <SignupForm />
-      </div>
+        <div className="auth-card">
+          <span className="auth-card-kicker">Reader profile</span>
+          <SignupForm callbackUrl={callbackUrl} />
 
-      <p className="auth-switch">
-        Already have an account? <Link href="/login">Sign in</Link>
-      </p>
+          <p className="auth-switch">
+            Already have an account? <Link href={loginUrl}>Sign in</Link>
+          </p>
+        </div>
+      </section>
+
+      <section className="auth-benefits" aria-label="Account benefits">
+        <article>
+          <strong>Comment</strong>
+          <span>Add your voice to stories with open discussion.</span>
+        </article>
+        <article>
+          <strong>React</strong>
+          <span>Like or dislike reader comments after joining.</span>
+        </article>
+        <article>
+          <strong>Return</strong>
+          <span>Go back to the exact story section after signup.</span>
+        </article>
+      </section>
     </main>
   );
 }

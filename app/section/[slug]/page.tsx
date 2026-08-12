@@ -3,9 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import AdvertisementSlot from "@/components/advertisement-slot";
 import UserMenu from "@/components/user-menu";
 import NewsletterForm from "@/components/newsletter-form";
 import Pagination from "@/components/pagination";
+import { getAdvertisementsBySlot } from "@/src/db/queries/advertisements";
 import { getMostReadArticles } from "@/src/db/queries/articles";
 import {
   countCategoryArticles,
@@ -58,11 +60,14 @@ export default async function SectionArchivePage({
   const requestedPage = Number.parseInt(resolvedSearchParams.page ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-  const [category, navItems, mostReadArticles, totalCount] = await Promise.all([
+  const [category, navItems, mostReadArticles, totalCount, categoryAds, sidebarAds] =
+    await Promise.all([
     getCategoryBySlug(slug),
     getNavbarCategories(),
     getMostReadArticles(10),
     countCategoryArticles(slug),
+    getAdvertisementsBySlot("CATEGORY_TOP", 2),
+    getAdvertisementsBySlot("HOMEPAGE_MIDDLE", 3),
   ]);
 
   if (!category) {
@@ -81,11 +86,11 @@ export default async function SectionArchivePage({
     "Latest stories, analysis and features from this section.";
   const items = archive?.items ?? [];
   const [leadStory, secondStory, thirdStory, ...feedStories] = items;
+  const railAds = [...sidebarAds, ...categoryAds];
+  const railAd = railAds[0] ?? null;
 
   return (
     <main className="channel-page">
-      <div className="channel-ad">Advertisement</div>
-
       <header className="channel-header">
         <Link href="/" className="channel-brand">
           Daily Chronicle
@@ -225,6 +230,8 @@ export default async function SectionArchivePage({
         </div>
 
         <aside className="channel-rail">
+          <AdvertisementSlot ad={railAd} variant="rail" />
+
           <section>
             <h2>Most Read</h2>
             <ol>

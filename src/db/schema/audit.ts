@@ -1,33 +1,27 @@
-import { index, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { articles } from "./articles";
 import { users } from "./users";
 
-export const auditAction = pgEnum("audit_action", [
-  "CREATE",
-  "UPDATE",
-  "DELETE",
-  "PUBLISH",
-  "UNPUBLISH",
-  "LOGIN",
-  "LOGOUT",
-]);
+export const auditActionValues = ["CREATE", "UPDATE", "DELETE", "PUBLISH", "UNPUBLISH", "LOGIN", "LOGOUT"] as const;
+export type AuditAction = (typeof auditActionValues)[number];
+const auditAction = (name: string) => text(name, { enum: auditActionValues });
 
-export const auditLogs = pgTable(
+export const auditLogs = sqliteTable(
   "audit_logs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
-    articleId: uuid("article_id").references(() => articles.id, {
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+    articleId: text("article_id").references(() => articles.id, {
       onDelete: "set null",
     }),
     action: auditAction("action").notNull(),
-    entityType: varchar("entity_type", { length: 120 }).notNull(),
-    entityId: uuid("entity_id"),
+    entityType: text("entity_type", { length: 120 }).notNull(),
+    entityId: text("entity_id"),
     summary: text("summary"),
-    metadata: jsonb("metadata").default({}).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
+    metadata: text("metadata", { mode: "json" }).default({}).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [

@@ -1,73 +1,55 @@
-This is a Next.js 16 application configured for Drizzle ORM, PostgreSQL, and Docker.
+This is a Next.js 16 application configured for Drizzle ORM and SQLite-compatible libSQL.
 
 ## Local development
 
 ```bash
 pnpm install
 cp .env.example .env
+pnpm db:sync
 pnpm dev
 ```
 
 Open http://localhost:3000.
 
-## Docker
+By default the app uses `file:/tmp/daily-chronicle-demo.db`. If an old non-SQLite `DATABASE_URL` is present locally, it is ignored and the demo SQLite file is used.
 
-The complete local production-like platform runs with:
+## Vercel Demo Deployment
 
-```bash
-docker compose up --build
-```
-
-For source-mounted Docker development with hot reload:
+For the current demo setup, the app can use file SQLite on Vercel. Keep this environment variable:
 
 ```bash
-docker compose -f docker-compose.development.yml up
+SQLITE_DATABASE_URL=file:/tmp/daily-chronicle-demo.db
+AUTH_SECRET=your-production-secret
+AUTH_URL=https://your-domain.com
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
 
-For production:
+`pnpm build` runs `pnpm db:sync` first. The runtime also checks the file DB on cold start and applies migrations plus demo seed data if the file is missing or empty.
+
+This is intentionally demo-only. Vercel function storage is ephemeral, so data can reset between deployments, cold starts, regions, or function instances. User-created content should not be treated as durable in this mode.
+
+For durable SQLite-compatible deployment later, switch to libSQL/Turso:
 
 ```bash
-docker compose -f docker-compose.production.yml up -d --build
+TURSO_DATABASE_URL=libsql://your-database.turso.io
+TURSO_AUTH_TOKEN=your-token
 ```
-
-Startup order is: wait for PostgreSQL, run generated Drizzle SQL migrations when `RUN_DATABASE_MIGRATIONS=true`, optionally seed only when `RUN_DATABASE_SEED=true`, then start `.next/standalone/server.js`.
 
 ## Database
 
 ```bash
 pnpm db:generate
 pnpm db:migrate
+pnpm db:sync
 pnpm db:push
 pnpm db:studio
 pnpm db:seed
 ```
 
-Use `pnpm db:migrate` for production deployments. `db:push` is only for local schema iteration.
+Use `pnpm db:sync` for demo deployments. It runs migrations and seed data. `db:push` is only for local schema iteration.
 
 ## Backups and recovery
 
-Docker volumes are persistent storage, not backups. Keep database backups outside the Docker host and test restores regularly.
-
-Logical backup:
-
-```bash
-docker compose exec db pg_dump -U herald -d herald -Fc -f /tmp/herald.dump
-docker compose cp db:/tmp/herald.dump ./backups/herald.dump
-```
-
-Restore:
-
-```bash
-docker compose cp ./backups/herald.dump db:/tmp/herald.dump
-docker compose exec db pg_restore -U herald -d herald --clean --if-exists /tmp/herald.dump
-```
-
-Named-volume backup:
-
-```bash
-docker run --rm -v newwebsite_postgres_data:/volume -v "$PWD/backups:/backup" alpine tar czf /backup/postgres_data.tgz -C /volume .
-```
-
-Migration rollback strategy: prefer forward-only corrective migrations. If rollback is unavoidable, restore a tested backup to a new database, deploy the previous application image against it, and only then switch traffic.
+For local demo SQLite, back up `/tmp/daily-chronicle-demo.db`. For Vercel/libSQL, use the provider backup/export workflow and test restores regularly.
 
 Bunny.net media is not stored permanently in the app container. Back up Bunny Storage separately using Bunny’s storage APIs or a scheduled sync to another durable object store.

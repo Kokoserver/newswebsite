@@ -9,7 +9,8 @@ const subscribeSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { db } = await import("@/src/db");
+  const { getDb } = await import("@/src/db");
+    const db = await getDb();
 
   const body = await request.json().catch(() => null);
   const parsed = subscribeSchema.safeParse(body);

@@ -1,12 +1,13 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 
-import { db } from "@/src/db";
+import { getDb } from "@/src/db";
 import { media } from "@/src/db/schema";
 
 import { asDate } from "./rehydrate";
 
 export async function getMediaLibraryItems(kind?: (typeof media.$inferSelect)["kind"]) {
+  const db = await getDb();
   return db.query.media.findMany({
     columns: {
       id: true,
@@ -27,8 +28,9 @@ export async function getMediaLibraryItems(kind?: (typeof media.$inferSelect)["k
 }
 
 const getVideoMediaCached = unstable_cache(
-  async (limit: number) =>
-    db
+  async (limit: number) => {
+    const db = await getDb();
+    return db
       .select({
         id: media.id,
         title: media.title,
@@ -46,7 +48,8 @@ const getVideoMediaCached = unstable_cache(
       .from(media)
       .where(and(eq(media.kind, "VIDEO"), sql`${media.deletedAt} IS NULL`))
       .orderBy(desc(media.createdAt))
-      .limit(limit),
+      .limit(limit);
+  },
   ["video-media"],
   { revalidate: 60 },
 );
@@ -59,6 +62,7 @@ export async function getVideoMedia(limit = 12) {
 }
 
 export async function getVideoBySlug(slug: string) {
+  const db = await getDb();
   return db.query.media.findFirst({
     columns: {
       id: true,
