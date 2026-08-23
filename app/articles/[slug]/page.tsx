@@ -120,24 +120,6 @@ function ShareRow({ title, url }: { title: string; url: string }) {
   );
 }
 
-function textBlocks(renderedContent: string | null, excerpt: string | null) {
-  if (!renderedContent) {
-    return [
-      excerpt ??
-        "This article is connected to the database and ready for editorial content.",
-      "Editors can update the article body, images, tags and category relationships from the database-backed workflow.",
-      "The page renders comments, related stories and most-read links from live records instead of static placeholders.",
-    ];
-  }
-
-  return renderedContent
-    .replace(/<[^>]+>/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 6);
-}
-
 export default async function ArticlePage({ params, searchParams }: ArticlePageProps) {
   const [{ slug }, resolvedSearchParams] = await Promise.all([
     params,
@@ -174,7 +156,6 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
       getArticleViewCount(article.id),
     ]);
 
-  const paragraphs = textBlocks(article.renderedContent, article.excerpt);
   const commentAutoApprove = commentAutoApproveEnabled();
   const signedIn = Boolean(session?.user?.id || session?.user?.email);
   const commenterName = session?.user?.name ?? session?.user?.email ?? "your account";
@@ -261,9 +242,14 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             />
           )}
 
-          {paragraphs.slice(0, 2).map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
+          {article.renderedContent ? (
+            <div
+              className="article-rich-content"
+              dangerouslySetInnerHTML={{ __html: article.renderedContent }}
+            />
+          ) : (
+            <p>{article.excerpt ?? "This story is ready for editorial content."}</p>
+          )}
 
           <aside className="article-pullout">
             <h2>More in {primaryCategory?.name ?? "News"}</h2>
@@ -276,18 +262,10 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             </Link>
           </aside>
 
-          {paragraphs.slice(2, 4).map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
-
           <ArticleImage
             seed={`${article.slug}-secondary`}
             caption="Sample supporting image for the demo article page."
           />
-
-          {paragraphs.slice(4).map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
 
           <div className="article-tags">
             {article.tags.map((tag) => (

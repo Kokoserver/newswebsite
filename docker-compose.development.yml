@@ -30,6 +30,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
+      NEXT_DIST_DIR: .next-docker
       DATABASE_URL: postgres://${POSTGRES_USER:-herald}:${POSTGRES_PASSWORD:-herald_password}@db:5432/${POSTGRES_DB:-herald}
       DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
       AUTH_SECRET: ${AUTH_SECRET:-local-development-auth-secret-change-me}

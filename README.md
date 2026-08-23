@@ -11,7 +11,7 @@ pnpm dev
 
 Open http://localhost:3000.
 
-By default the app uses `file:/tmp/daily-chronicle-demo.db`. If an old non-SQLite `DATABASE_URL` is present locally, it is ignored and the demo SQLite file is used.
+By default the app uses `daily-chronicle-demo.db` in the operating system's temporary directory. If an old non-SQLite `DATABASE_URL` is present locally, it is ignored and the demo SQLite file is used.
 
 ## Vercel Demo Deployment
 
@@ -37,6 +37,24 @@ For durable SQLite-compatible deployment later, switch to libSQL/Turso:
 TURSO_DATABASE_URL=libsql://your-database.turso.io
 TURSO_AUTH_TOKEN=your-token
 ```
+
+## Bunny media storage
+
+Newsroom uploads require Bunny Storage. The application does not silently fall back to local disk, so an incorrectly configured deployment cannot create media that disappears after a restart.
+
+Create a Bunny Storage Zone, connect it to a Pull Zone, then configure:
+
+```bash
+BUNNY_STORAGE_ZONE=your-storage-zone-name
+BUNNY_STORAGE_ACCESS_KEY=your-storage-zone-password
+BUNNY_STORAGE_HOSTNAME=storage.bunnycdn.com
+BUNNY_PULL_ZONE_URL=https://your-pull-zone.b-cdn.net
+BUNNY_UPLOAD_MAX_BYTES=15728640
+```
+
+Use the regional API hostname shown on the Storage Zone Access page, such as `uk.storage.bunnycdn.com` or `ny.storage.bunnycdn.com`. `BUNNY_STORAGE_ACCESS_KEY` is the Storage Zone password, not the global Bunny account API key. Keep it server-side and never expose it with a `NEXT_PUBLIC_` prefix.
+
+The article editor searches media through a cursor-paginated authenticated API. Editors can also upload from the picker; the server verifies the file, uploads it to Bunny with a SHA-256 checksum, creates the central media record, and inserts it into the article. Public delivery uses the Pull Zone CDN URL.
 
 ## Database
 

@@ -1,6 +1,8 @@
 import "dotenv/config";
 
 import { defineConfig } from "drizzle-kit";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const sqliteUrlSchemes = ["file:", "libsql:", "https:", "http:", "ws:", "wss:"] as const;
 
@@ -14,7 +16,7 @@ const configuredUrl =
   process.env.DATABASE_URL;
 const databaseUrl = isSqliteCompatibleUrl(configuredUrl)
   ? configuredUrl!
-  : "file:/tmp/daily-chronicle-demo.db";
+  : `file:${join(tmpdir(), "daily-chronicle-demo.db").replaceAll("\\", "/")}`;
 const authToken = process.env.DATABASE_AUTH_TOKEN ?? process.env.TURSO_AUTH_TOKEN;
 const usesRemoteLibsql = databaseUrl.startsWith("libsql://") || databaseUrl.startsWith("https://");
 

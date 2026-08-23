@@ -1,5 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const sqliteUrlSchemes = ["file:", "libsql:", "https:", "http:", "ws:", "wss:"] as const;
 
@@ -12,9 +14,10 @@ export function getDatabaseConfig() {
     process.env.TURSO_DATABASE_URL ??
     process.env.SQLITE_DATABASE_URL ??
     process.env.DATABASE_URL;
+  const defaultFileUrl = `file:${join(tmpdir(), "daily-chronicle-demo.db").replaceAll("\\", "/")}`;
   const url = isSqliteCompatibleUrl(configuredUrl)
     ? configuredUrl!
-    : "file:/tmp/daily-chronicle-demo.db";
+    : defaultFileUrl;
 
   return {
     url,

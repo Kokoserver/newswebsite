@@ -250,7 +250,7 @@ function TopStory({ item }: { item: HomepageItem }) {
   const href = itemHref(item);
 
   return (
-    <article className="lead-banner">
+    <article className="lead-banner portal-main">
       <h1>
         <Link href={href}>{title}</Link>
       </h1>

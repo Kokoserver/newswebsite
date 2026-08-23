@@ -115,7 +115,7 @@ const getHomepageDataCached = unstable_cache(
       return sections;
     }, []);
   },
-  ["homepage-data"],
+  ["homepage-data-v2"],
   { revalidate: 60 },
 );
 

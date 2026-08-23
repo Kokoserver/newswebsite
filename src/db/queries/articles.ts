@@ -105,7 +105,7 @@ const getPublishedArticleBySlugCached = unstable_cache(
       tags: articleTagRows,
     };
   },
-  ["article-by-slug"],
+  ["article-by-slug-v2"],
   { revalidate: 60 },
 );
 

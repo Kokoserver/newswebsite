@@ -97,7 +97,7 @@ const headlineTemplates = [
 ] as const;
 
 const videoEntries = [
-  ["Morning News Briefing", "morning-news-briefing", "The essential morning headlines, picked and explained in minutes."],
+  ["Inheritance Dispute Video Explain", "inheritance-dispute-video-explain", "The essential morning headlines, picked and explained in minutes."],
   ["Showbiz Interview", "showbiz-interview", "A-list star opens up in an exclusive one-on-one interview."],
   ["Royal Report", "royal-report", "Palace insiders on the planning behind a major public reset."],
   ["Money Matters", "money-matters", "Mortgage rates and household budgets explained."],
@@ -400,7 +400,8 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
         altText: videoCaption,
         caption: videoCaption,
         bunnyPath: `demo/video/${videoSlug}.mp4`,
-        publicUrl: sampleImageUrl(`video-${videoSlug}`, 1280, 720),
+        publicUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+        posterUrl: sampleImageUrl(`video-${videoSlug}`, 1280, 720),
         mimeType: "video/mp4",
         byteSize: 4_500_000,
         width: 1280,
@@ -443,6 +444,9 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
         const publishedAt = daysAgo(categoryIndex + index);
         const author = authors[(categoryIndex + index) % authors.length];
         const heroImage = mediaByPath.get(`demo/${category.slug}/image-${(index % 5) + 1}.jpg`);
+        const heroVideo = isLegacyMostReadLink
+          ? mediaByPath.get("demo/video/inheritance-dispute-video-explain.mp4")
+          : undefined;
 
         articleRows.push({
           title,
@@ -455,6 +459,7 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
           type: index === 0 ? ("BREAKING" as const) : index === 1 ? ("ANALYSIS" as const) : ("STANDARD" as const),
           authorId: author.id,
           heroImageId: heroImage?.id,
+          heroVideoId: heroVideo?.id,
           mobileHeroImageId: heroImage?.id,
           socialImageId: heroImage?.id,
           seoTitle: title.slice(0, 70),
