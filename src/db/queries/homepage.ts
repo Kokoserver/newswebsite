@@ -116,7 +116,7 @@ const getHomepageDataCached = unstable_cache(
     }, []);
   },
   ["homepage-data-v2"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["homepage", "articles", "media"] },
 );
 
 export async function getHomepageData() {

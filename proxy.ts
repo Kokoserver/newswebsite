@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-type Bucket = {
-  count: number;
-  resetAt: number;
-};
+import { createContentSecurityPolicy } from "@/src/security/content-security-policy";
+import { checkRateLimit } from "@/src/security/rate-limit";
 
 type RouteLimit = {
   pathPattern: RegExp;
@@ -45,8 +43,6 @@ const routeLimits: RouteLimit[] = [
   },
 ];
 
-const buckets = new Map<string, Bucket>();
-
 function getClientIp(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
 
@@ -57,62 +53,48 @@ function getClientIp(request: NextRequest) {
   return request.headers.get("x-real-ip") ?? "unknown";
 }
 
-function pruneBuckets(now: number) {
-  if (buckets.size < 10_000) {
-    return;
-  }
-
-  for (const [key, bucket] of buckets) {
-    if (bucket.resetAt <= now) {
-      buckets.delete(key);
-    }
-  }
+function nonceForRequest() {
+  return Buffer.from(crypto.randomUUID()).toString("base64");
 }
 
-export function proxy(request: NextRequest) {
-  if (request.method !== "POST") {
-    return;
-  }
+function securityHeaders(nonce: string) {
+  return {
+    "Content-Security-Policy": createContentSecurityPolicy(nonce),
+    "x-nonce": nonce,
+  };
+}
+
+export async function proxy(request: NextRequest) {
+  const nonce = nonceForRequest();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("Content-Security-Policy", createContentSecurityPolicy(nonce));
+  requestHeaders.set("x-nonce", nonce);
 
   const pathname = request.nextUrl.pathname;
   const limit = routeLimits.find((route) => route.pathPattern.test(pathname));
 
-  if (!limit) {
-    return;
+  if (request.method === "POST" && limit) {
+    const result = await checkRateLimit(`${getClientIp(request)}|${pathname}`, limit.max, limit.windowMs);
+
+    if (!result.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            ...securityHeaders(nonce),
+            "Retry-After": String(result.retryAfterSeconds),
+          },
+        },
+      );
+    }
   }
 
-  const now = Date.now();
-  pruneBuckets(now);
-
-  const key = `${getClientIp(request)}|${pathname}`;
-  const bucket = buckets.get(key);
-
-  if (!bucket || bucket.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + limit.windowMs });
-    return;
-  }
-
-  bucket.count += 1;
-
-  if (bucket.count > limit.max) {
-    const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
-
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      },
-    );
-  }
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  for (const [name, value] of Object.entries(securityHeaders(nonce))) response.headers.set(name, value);
+  return response;
 }
 
 export const config = {
-  matcher: [
-    "/api/auth/:path*",
-    "/api/newsletter/:path*",
-    "/api/comments/:path*",
-    "/api/views",
-    "/articles/:slug/comments",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)"],
 };

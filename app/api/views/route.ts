@@ -1,6 +1,10 @@
 import { and, eq, gte, sql } from "drizzle-orm";
+import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { z } from "zod";
+
+import { getAuthSecret } from "@/src/config";
 
 const viewPayloadSchema = z.object({
   articleId: z.string().uuid(),
@@ -36,76 +40,54 @@ export async function POST(request: Request) {
     return new NextResponse("Bad request", { status: 400 });
   }
 
-  const { getDb } = await import("@/src/db");
-    const db = await getDb();
-  const { articleViewDailyStats, articleViews, articles } = await import("@/src/db/schema");
+  const visitorHash = payload.visitorId
+    ? createHmac("sha256", getAuthSecret()).update(payload.visitorId).digest("hex")
+    : null;
+  const userAgent = request.headers.get("user-agent")?.slice(0, 2_048) ?? null;
 
-  const article = await db.query.articles.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(articles.id, payload.articleId),
-      eq(articles.status, "PUBLISHED"),
-      sql`${articles.deletedAt} IS NULL`,
-    ),
-  });
-
-  if (!article) {
-    return new NextResponse("Not found", { status: 404 });
-  }
-
-  const visitorHash = payload.visitorId ?? null;
-  let isNewVisitor = true;
-
-  if (visitorHash) {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const [existingView] = await db
-      .select({ id: articleViews.id })
-      .from(articleViews)
-      .where(
-        and(
-          eq(articleViews.articleId, payload.articleId),
-          eq(articleViews.visitorHash, visitorHash),
-          gte(articleViews.viewedAt, todayStart),
+  after(async () => {
+    try {
+      const { getDb } = await import("@/src/db");
+      const { articleViewDailyStats, articleViews, articles } = await import("@/src/db/schema");
+      const db = await getDb();
+      const article = await db.query.articles.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(articles.id, payload.articleId),
+          eq(articles.status, "PUBLISHED"),
+          sql`${articles.deletedAt} IS NULL`,
         ),
-      )
-      .limit(1);
-
-    isNewVisitor = !existingView;
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  await db.transaction(async (tx) => {
-    await tx.insert(articleViews).values({
-      articleId: payload.articleId,
-      visitorHash,
-      referrer: payload.referrer ?? null,
-      userAgent: request.headers.get("user-agent")?.slice(0, 2_048) ?? null,
-    });
-
-    await tx
-      .update(articles)
-      .set({ viewCount: sql`${articles.viewCount} + 1` })
-      .where(eq(articles.id, payload.articleId));
-
-    await tx
-      .insert(articleViewDailyStats)
-      .values({
-        articleId: payload.articleId,
-        day: today,
-        views: 1,
-        uniqueVisitors: isNewVisitor ? 1 : 0,
-      })
-      .onConflictDoUpdate({
-        target: [articleViewDailyStats.articleId, articleViewDailyStats.day],
-        set: {
-          views: sql`${articleViewDailyStats.views} + 1`,
-          uniqueVisitors: sql`${articleViewDailyStats.uniqueVisitors} + ${isNewVisitor ? 1 : 0}`,
-        },
       });
+      if (!article) return;
+
+      let isNewVisitor = true;
+      if (visitorHash) {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const [existingView] = await db
+          .select({ id: articleViews.id })
+          .from(articleViews)
+          .where(and(eq(articleViews.articleId, payload.articleId), eq(articleViews.visitorHash, visitorHash), gte(articleViews.viewedAt, todayStart)))
+          .limit(1);
+        isNewVisitor = !existingView;
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      await db.transaction(async (tx) => {
+        await tx.insert(articleViews).values({ articleId: payload.articleId, visitorHash, referrer: payload.referrer ?? null, userAgent });
+        await tx.update(articles).set({ viewCount: sql`${articles.viewCount} + 1` }).where(eq(articles.id, payload.articleId));
+        await tx.insert(articleViewDailyStats).values({ articleId: payload.articleId, day: today, views: 1, uniqueVisitors: isNewVisitor ? 1 : 0 }).onConflictDoUpdate({
+          target: [articleViewDailyStats.articleId, articleViewDailyStats.day],
+          set: {
+            views: sql`${articleViewDailyStats.views} + 1`,
+            uniqueVisitors: sql`${articleViewDailyStats.uniqueVisitors} + ${isNewVisitor ? 1 : 0}`,
+          },
+        });
+      });
+    } catch (error) {
+      console.error("Unable to record article view", error);
+    }
   });
 
-  return new NextResponse(null, { status: 204 });
+  return new NextResponse(null, { status: 202 });
 }

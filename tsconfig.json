@@ -41,6 +41,8 @@
     ".next-docker/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next-docker",
+    ".next-local/dev"
   ]
 }

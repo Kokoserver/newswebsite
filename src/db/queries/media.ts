@@ -51,7 +51,7 @@ const getVideoMediaCached = unstable_cache(
       .limit(limit);
   },
   ["video-media"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["media"] },
 );
 
 export async function getVideoMedia(limit = 12) {

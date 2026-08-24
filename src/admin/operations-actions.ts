@@ -3,7 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { and, eq, ne, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import slugify from "slugify";
 import { z } from "zod";
@@ -19,8 +19,9 @@ import {
   passwordResetTokens, tags, userRoleValues, users, userStatusValues,
 } from "@/src/db/schema";
 
-function invalidateAdmin(path: string, publicPaths: string[] = []) {
+function invalidateAdmin(path: string, publicPaths: string[] = [], tagsToUpdate: string[] = []) {
   revalidatePath(path); revalidatePath("/admin"); publicPaths.forEach((value) => revalidatePath(value));
+  tagsToUpdate.forEach((tag) => updateTag(tag));
 }
 
 export async function saveCategory(categoryId: string | null, formData: FormData) {
@@ -35,7 +36,7 @@ export async function saveCategory(categoryId: string | null, formData: FormData
     else { const [created] = await tx.insert(categories).values(values).returning({ id: categories.id }); id = created.id; }
     await tx.insert(auditLogs).values({ actorId: actor.id, action: categoryId ? "UPDATE" : "CREATE", entityType: "category", entityId: id, summary: `${categoryId ? "Updated" : "Created"} category ${name}`, metadata: {} });
   });
-  invalidateAdmin("/admin/taxonomy", ["/", `/section/${slug}`]);
+  invalidateAdmin("/admin/taxonomy", ["/", `/section/${slug}`], ["categories", "articles", "homepage"]);
 }
 
 export async function saveNavbar(categoryId: string, formData: FormData) {
@@ -47,7 +48,7 @@ export async function saveNavbar(categoryId: string, formData: FormData) {
     if (existing) await tx.update(navbarItems).set(values).where(eq(navbarItems.id, existing.id)); else await tx.insert(navbarItems).values(values);
     await tx.insert(auditLogs).values({ actorId: actor.id, action: existing ? "UPDATE" : "CREATE", entityType: "navbar", entityId: categoryId, summary: `Updated navigation item ${values.label}`, metadata: {} });
   });
-  invalidateAdmin("/admin/taxonomy", ["/"]);
+  invalidateAdmin("/admin/taxonomy", ["/"], ["categories"]);
 }
 
 export async function createTag(formData: FormData) {
@@ -70,13 +71,13 @@ export async function saveHomepageSection(sectionId: string | null, formData: Fo
   const values = { key: slugify(textValue(formData, "key") || textValue(formData, "title"), { lower: true, strict: true }), title: z.string().trim().min(1).max(180).parse(textValue(formData, "title")), kind: z.enum(homepageSectionKindValues).parse(textValue(formData, "kind")), position: positiveInteger(formData, "position"), updatedAt: new Date() };
   const db = await getDb();
   await db.transaction(async (tx) => { let id = sectionId; if (id) await tx.update(homepageSections).set(values).where(eq(homepageSections.id, id)); else { const [created] = await tx.insert(homepageSections).values(values).returning({ id: homepageSections.id }); id = created.id; } await tx.insert(auditLogs).values({ actorId: actor.id, action: sectionId ? "UPDATE" : "CREATE", entityType: "homepage_section", entityId: id, summary: `${sectionId ? "Updated" : "Created"} homepage section ${values.title}`, metadata: {} }); });
-  invalidateAdmin("/admin/homepage", ["/"]);
+  invalidateAdmin("/admin/homepage", ["/"], ["homepage"]);
 }
 
 export async function deleteHomepageSection(sectionId: string) {
   const actor = await requireAdminUser("homepage:manage"); const db = await getDb();
   await db.transaction(async (tx) => { const section = await tx.query.homepageSections.findFirst({ where: eq(homepageSections.id, sectionId) }); await tx.delete(homepageSections).where(eq(homepageSections.id, sectionId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "homepage_section", entityId: sectionId, summary: `Deleted homepage section ${section?.title ?? ""}`, metadata: {} }); });
-  invalidateAdmin("/admin/homepage", ["/"]);
+  invalidateAdmin("/admin/homepage", ["/"], ["homepage"]);
 }
 
 export async function saveHomepageItem(itemId: string | null, formData: FormData) {
@@ -85,10 +86,10 @@ export async function saveHomepageItem(itemId: string | null, formData: FormData
   const values = { sectionId: z.string().uuid().parse(textValue(formData, "sectionId")), articleId: optionalText(formData, "articleId"), mediaId: optionalText(formData, "mediaId"), titleOverride: optionalText(formData, "titleOverride"), dekOverride: optionalText(formData, "dekOverride"), position: positiveInteger(formData, "position"), startsAt, endsAt };
   if (!values.articleId && !values.mediaId) throw new Error("Choose an article or media item.");
   const db = await getDb(); await db.transaction(async (tx) => { let id = itemId; if (id) await tx.update(homepageItems).set(values).where(eq(homepageItems.id, id)); else { const [created] = await tx.insert(homepageItems).values(values).returning({ id: homepageItems.id }); id = created.id; } await tx.insert(auditLogs).values({ actorId: actor.id, action: itemId ? "UPDATE" : "CREATE", entityType: "homepage_item", entityId: id, summary: `${itemId ? "Updated" : "Created"} homepage placement`, metadata: { sectionId: values.sectionId } }); });
-  invalidateAdmin("/admin/homepage", ["/"]);
+  invalidateAdmin("/admin/homepage", ["/"], ["homepage"]);
 }
 
-export async function deleteHomepageItem(itemId: string) { const actor = await requireAdminUser("homepage:manage"); const db = await getDb(); await db.transaction(async (tx) => { await tx.delete(homepageItems).where(eq(homepageItems.id, itemId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "homepage_item", entityId: itemId, summary: "Removed homepage placement", metadata: {} }); }); invalidateAdmin("/admin/homepage", ["/"]); }
+export async function deleteHomepageItem(itemId: string) { const actor = await requireAdminUser("homepage:manage"); const db = await getDb(); await db.transaction(async (tx) => { await tx.delete(homepageItems).where(eq(homepageItems.id, itemId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "homepage_item", entityId: itemId, summary: "Removed homepage placement", metadata: {} }); }); invalidateAdmin("/admin/homepage", ["/"], ["homepage"]); }
 
 export async function moderateComment(commentId: string, formData: FormData) {
   const actor = await requireAdminUser("comments:moderate"); const status = z.enum(commentStatusValues).parse(textValue(formData, "status")); const db = await getDb();
@@ -100,9 +101,9 @@ const adSchema = z.object({ name: z.string().trim().min(2).max(200), status: z.e
 export async function saveAdvertisement(adId: string | null, assignmentId: string | null, formData: FormData) {
   const actor = await requireAdminUser("ads:manage"); const startsAt = dateOrNull(formData, "startsAt"); const endsAt = dateOrNull(formData, "endsAt");
   const input = adSchema.parse({ name: textValue(formData, "name"), status: textValue(formData, "status"), targetUrl: textValue(formData, "targetUrl"), mediaId: optionalText(formData, "mediaId"), slot: textValue(formData, "slot"), position: positiveInteger(formData, "position"), startsAt, endsAt }); if (input.endsAt <= input.startsAt) throw new Error("End time must be after start time.");
-  const db = await getDb(); await db.transaction(async (tx) => { let id = adId; const adValues = { name: input.name, status: input.status, targetUrl: input.targetUrl, mediaId: input.mediaId, startsAt: input.startsAt, endsAt: input.endsAt }; if (id) await tx.update(advertisements).set(adValues).where(eq(advertisements.id, id)); else { const [created] = await tx.insert(advertisements).values(adValues).returning({ id: advertisements.id }); id = created.id; } const assignment = { advertisementId: id!, slot: input.slot, position: input.position, startsAt: input.startsAt, endsAt: input.endsAt }; if (assignmentId) await tx.update(advertisementAssignments).set(assignment).where(and(eq(advertisementAssignments.id, assignmentId), eq(advertisementAssignments.advertisementId, id!))); else await tx.insert(advertisementAssignments).values(assignment); await tx.insert(auditLogs).values({ actorId: actor.id, action: adId ? "UPDATE" : "CREATE", entityType: "advertisement", entityId: id, summary: `${adId ? "Updated" : "Created"} advertisement ${input.name}`, metadata: { slot: input.slot } }); }); invalidateAdmin("/admin/ads", ["/"]);
+  const db = await getDb(); await db.transaction(async (tx) => { let id = adId; const adValues = { name: input.name, status: input.status, targetUrl: input.targetUrl, mediaId: input.mediaId, startsAt: input.startsAt, endsAt: input.endsAt }; if (id) await tx.update(advertisements).set(adValues).where(eq(advertisements.id, id)); else { const [created] = await tx.insert(advertisements).values(adValues).returning({ id: advertisements.id }); id = created.id; } const assignment = { advertisementId: id!, slot: input.slot, position: input.position, startsAt: input.startsAt, endsAt: input.endsAt }; if (assignmentId) await tx.update(advertisementAssignments).set(assignment).where(and(eq(advertisementAssignments.id, assignmentId), eq(advertisementAssignments.advertisementId, id!))); else await tx.insert(advertisementAssignments).values(assignment); await tx.insert(auditLogs).values({ actorId: actor.id, action: adId ? "UPDATE" : "CREATE", entityType: "advertisement", entityId: id, summary: `${adId ? "Updated" : "Created"} advertisement ${input.name}`, metadata: { slot: input.slot } }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]);
 }
-export async function deleteAdvertisement(adId: string) { const actor = await requireAdminUser("ads:manage"); const db = await getDb(); await db.transaction(async (tx) => { const ad = await tx.query.advertisements.findFirst({ where: eq(advertisements.id, adId) }); await tx.delete(advertisements).where(eq(advertisements.id, adId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "advertisement", entityId: adId, summary: `Deleted advertisement ${ad?.name ?? ""}`, metadata: {} }); }); invalidateAdmin("/admin/ads", ["/"]); }
+export async function deleteAdvertisement(adId: string) { const actor = await requireAdminUser("ads:manage"); const db = await getDb(); await db.transaction(async (tx) => { const ad = await tx.query.advertisements.findFirst({ where: eq(advertisements.id, adId) }); await tx.delete(advertisements).where(eq(advertisements.id, adId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "advertisement", entityId: adId, summary: `Deleted advertisement ${ad?.name ?? ""}`, metadata: {} }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]); }
 
 function newSetupToken() { const token = randomBytes(32).toString("hex"); return { token, tokenHash: createHash("sha256").update(token).digest("hex") }; }
 export async function inviteUser(formData: FormData) {

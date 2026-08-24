@@ -20,6 +20,7 @@
 /.next/
 /.next-local/
 /.next-docker/
+/.next-portable/
 /out/
 
 # production

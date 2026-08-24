@@ -41,7 +41,7 @@ const getAdvertisementsBySlotCached = unstable_cache(
       .limit(limit);
   },
   ["advertisements-by-slot"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["advertisements", "media"] },
 );
 
 export async function getAdvertisementsBySlot(slot: AdvertisementSlot, limit = 1) {

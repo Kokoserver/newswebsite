@@ -57,7 +57,7 @@ const getCategoryArchiveCached = unstable_cache(
     return { category, items };
   },
   ["category-archive"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles", "categories"] },
 );
 
 export async function getCategoryArchive(slug: string, limit = 24, offset = 0) {
@@ -97,7 +97,7 @@ const countCategoryArticlesCached = unstable_cache(
     return row?.count ?? 0;
   },
   ["count-category-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles", "categories"] },
 );
 
 export async function countCategoryArticles(slug: string) {
@@ -142,7 +142,7 @@ const getNavbarCategoriesCached = unstable_cache(
       .orderBy(asc(navbarItems.position), asc(navbarItems.label));
   },
   ["navbar-categories"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["categories"] },
 );
 
 export async function getNavbarCategories() {

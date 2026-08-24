@@ -1,7 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { requireAdminUser } from "@/src/admin/permissions";
 import { optionalText } from "@/src/admin/shared";
@@ -17,6 +17,7 @@ export async function updateMedia(mediaId: string, formData: FormData) {
     await tx.insert(auditLogs).values({ actorId: actor.id, action: "UPDATE", entityType: "media", entityId: mediaId, summary: `Updated ${title ?? "media metadata"}`, metadata: {} });
   });
   revalidatePath("/admin/media"); revalidatePath("/");
+  updateTag("media"); updateTag("homepage"); updateTag("advertisements");
 }
 
 export async function deleteMedia(mediaId: string) {
@@ -28,4 +29,5 @@ export async function deleteMedia(mediaId: string) {
     await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "media", entityId: mediaId, summary: `Removed ${item?.title ?? "media"} from the library`, metadata: {} });
   });
   revalidatePath("/admin/media"); revalidatePath("/");
+  updateTag("media"); updateTag("homepage"); updateTag("advertisements");
 }

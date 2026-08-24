@@ -1,7 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
 import slugify from "slugify";
@@ -145,6 +145,9 @@ export async function saveArticle(articleId: string | null, formData: FormData) 
   revalidatePath("/latest");
   revalidatePath("/admin");
   revalidatePath("/admin/articles");
+  updateTag("articles");
+  updateTag("homepage");
+  updateTag("analytics");
   redirect(`/admin/articles/${id}?saved=1`);
 }
 
@@ -159,5 +162,8 @@ export async function archiveArticle(articleId: string) {
   });
   revalidatePath("/");
   revalidatePath("/admin/articles");
+  updateTag("articles");
+  updateTag("homepage");
+  updateTag("analytics");
   redirect("/admin/articles");
 }

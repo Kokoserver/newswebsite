@@ -106,7 +106,7 @@ const getPublishedArticleBySlugCached = unstable_cache(
     };
   },
   ["article-by-slug-v2"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles"] },
 );
 
 export async function getPublishedArticleBySlug(slug: string) {
@@ -177,7 +177,7 @@ const searchArticlesCached = unstable_cache(
     }));
   },
   ["search-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles"] },
 );
 
 export async function searchArticles(query: string, limit = 30) {
@@ -225,7 +225,7 @@ const getLatestArticlesCached = unstable_cache(
     }));
   },
   ["latest-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles"] },
 );
 
 export async function getLatestArticles(limit = 12, offset = 0) {
@@ -264,7 +264,7 @@ const getMostReadArticlesCached = unstable_cache(
       .limit(limit);
   },
   ["most-read-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles"] },
 );
 
 export async function getMostReadArticles(limit = 10) {
@@ -287,7 +287,7 @@ const countLatestArticlesCached = unstable_cache(
     return row?.count ?? 0;
   },
   ["count-latest-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles"] },
 );
 
 export async function countLatestArticles() {
@@ -424,7 +424,7 @@ const getRelatedArticlesCached = unstable_cache(
       .limit(limit);
   },
   ["related-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["articles"] },
 );
 
 export async function getRelatedArticles(articleId: string, categoryIds: string[], limit = 4) {

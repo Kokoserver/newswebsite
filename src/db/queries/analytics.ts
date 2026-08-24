@@ -54,7 +54,7 @@ const getTrendingArticlesCached = unstable_cache(
       .limit(limit);
   },
   ["trending-articles"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["analytics", "articles"] },
 );
 
 export async function getTrendingArticles(limit = 10) {

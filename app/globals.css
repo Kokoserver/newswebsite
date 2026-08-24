@@ -4164,3 +4164,27 @@ input {
     grid-template-columns: 1fr;
   }
 }
+
+/* Progress elements avoid inline styles so charts remain compatible with strict CSP. */
+.admin-chart-bar {
+  width: min(22px, 80%);
+  height: 100%;
+  border: 0;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: none;
+}
+
+.admin-chart-bar::-webkit-progress-bar {
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+}
+
+.admin-chart-bar::-webkit-progress-value,
+.admin-chart-bar::-moz-progress-bar {
+  min-height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(#29bbc9, #0866c6);
+}

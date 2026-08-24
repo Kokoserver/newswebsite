@@ -23,45 +23,7 @@ if (bunnyPullZoneUrl) {
   });
 }
 
-const imageHosts = ["picsum.photos", "fastly.picsum.photos"];
-
-if (bunnyPullZoneUrl) {
-  imageHosts.push(new URL(bunnyPullZoneUrl).hostname);
-}
-
-const mediaHosts = ["interactive-examples.mdn.mozilla.net"];
-
-if (bunnyPullZoneUrl) {
-  mediaHosts.push(new URL(bunnyPullZoneUrl).hostname);
-}
-
-const scriptSrc = isProduction
-  ? "'self' 'unsafe-inline'"
-  : "'self' 'unsafe-inline' 'unsafe-eval'";
-const connectSrc = isProduction ? "'self'" : "'self' ws:";
-const imgSrc = `'self' data: blob: ${imageHosts
-  .map((host) => `https://${host}`)
-  .join(" ")}`;
-const mediaSrc = `'self' blob: ${mediaHosts
-  .map((host) => `https://${host}`)
-  .join(" ")}`;
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  `connect-src ${connectSrc}`,
-  `img-src ${imgSrc}`,
-  "font-src 'self' data:",
-  `media-src ${mediaSrc}`,
-  `script-src ${scriptSrc}`,
-  "style-src 'self' 'unsafe-inline'",
-].join("; ");
-
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -86,7 +48,9 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns,
     formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86_400,
   },
+  deploymentId: process.env.DEPLOYMENT_VERSION,
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
   outputFileTracingIncludes: {
