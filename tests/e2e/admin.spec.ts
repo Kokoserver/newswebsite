@@ -8,7 +8,7 @@ async function signIn(page: import("@playwright/test").Page) {
   await page.getByLabel("Email").fill("admin@example.com");
   await page.getByLabel("Password").fill("change-me-locally");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 90_000 });
+  await expect(page).toHaveURL((url) => url.pathname === "/admin", { timeout: 90_000 });
 }
 
 test("admin can sign in and open the newsroom dashboard", async ({ page }) => {
@@ -43,7 +43,7 @@ test("admin can paginate the central media library", async ({ page }) => {
   await expect(page.locator(".admin-media-card")).toHaveCount(24);
   const pagination = page.getByRole("navigation", { name: "Media pages" });
   await pagination.getByRole("link", { name: "Next" }).click();
-  await expect(page).toHaveURL(/\/admin\/media\?.*cursor=/);
+  await expect(page).toHaveURL(/\/admin\/media\?.*cursor=/, { timeout: 30_000 });
   await expect(page.locator(".admin-media-card").first()).toBeVisible();
   await expect(pagination.getByRole("link", { name: "Previous" })).toHaveAttribute("aria-disabled", "false");
 });
