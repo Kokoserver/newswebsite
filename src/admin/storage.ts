@@ -25,13 +25,17 @@ function cleanStorageHost(value: string) {
 
 export function getBunnyConfig(): BunnyConfig {
   const zone = process.env.BUNNY_STORAGE_ZONE?.trim();
-  const accessKey = process.env.BUNNY_STORAGE_ACCESS_KEY?.trim();
-  const pullZone = process.env.BUNNY_PULL_ZONE_URL?.trim();
+  const accessKey =
+    process.env.BUNNY_STORAGE_PASSWORD?.trim() ??
+    process.env.BUNNY_STORAGE_ACCESS_KEY?.trim();
+  const pullZone =
+    process.env.BUNNY_CDN_URL?.trim() ??
+    process.env.BUNNY_PULL_ZONE_URL?.trim();
   if (!zone || !accessKey || !pullZone) {
-    throw new Error("Bunny Storage is not configured. Set BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ACCESS_KEY and BUNNY_PULL_ZONE_URL.");
+    throw new Error("Bunny Storage is not configured. Set BUNNY_STORAGE_ZONE, BUNNY_STORAGE_PASSWORD and BUNNY_CDN_URL.");
   }
   const pullZoneUrl = new URL(pullZone);
-  if (pullZoneUrl.protocol !== "https:") throw new Error("BUNNY_PULL_ZONE_URL must use HTTPS.");
+  if (pullZoneUrl.protocol !== "https:") throw new Error("BUNNY_CDN_URL must use HTTPS.");
   return {
     zone,
     accessKey,

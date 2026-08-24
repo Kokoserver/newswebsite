@@ -2,7 +2,7 @@ const imageHosts = ["picsum.photos", "fastly.picsum.photos"];
 const mediaHosts = ["interactive-examples.mdn.mozilla.net"];
 
 function addConfiguredMediaHost(hosts: string[]) {
-  const pullZone = process.env.BUNNY_PULL_ZONE_URL;
+  const pullZone = process.env.BUNNY_CDN_URL ?? process.env.BUNNY_PULL_ZONE_URL;
   if (!pullZone) return hosts;
 
   try {
