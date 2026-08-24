@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 type LoginPageProps = {
   searchParams?: Promise<{
     callbackUrl?: string;
+    reason?: string;
   }>;
 };
 
@@ -59,6 +60,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="auth-card">
           <span className="auth-card-kicker">Daily Chronicle account</span>
+          {params?.reason === "session-expired" ? (
+            <p className="auth-notice">Your session expired. Sign in again to continue.</p>
+          ) : null}
           <LoginForm callbackUrl={callbackUrl} />
 
           <p className="auth-switch">

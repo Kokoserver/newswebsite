@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { looksLikeMarkdown, markdownToHtml } from "@/src/admin/markdown";
 
 describe("admin Markdown import", () => {
-  it("converts common ChatGPT Markdown into rich text HTML", () => {
+  it("converts common Markdown into rich text HTML", () => {
     const html = markdownToHtml("# Lead story\n\nA **bold** opening with [context](https://example.com).\n\n- First\n- Second");
 
     expect(html).toContain("<h2>Lead story</h2>");

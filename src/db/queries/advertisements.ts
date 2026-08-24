@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 
 import { advertisementAssignments, advertisements, media } from "@/src/db/schema";
@@ -48,9 +48,17 @@ export async function getAdvertisementsBySlot(slot: AdvertisementSlot, limit = 1
   return getAdvertisementsBySlotCached(slot, limit);
 }
 
-export async function getAdminAdvertisements() {
+export async function getAdminAdvertisements(limit = 10, offset = 0) {
   const { getDb } = await import("@/src/db");
-    const db = await getDb();
+  const db = await getDb();
+  const page = await db
+    .select({ id: advertisements.id })
+    .from(advertisements)
+    .orderBy(desc(advertisements.createdAt), desc(advertisements.id))
+    .limit(limit)
+    .offset(offset);
+
+  if (page.length === 0) return [];
 
   return db
     .select({
@@ -74,12 +82,23 @@ export async function getAdminAdvertisements() {
     .from(advertisements)
     .leftJoin(advertisementAssignments, eq(advertisementAssignments.advertisementId, advertisements.id))
     .leftJoin(media, eq(advertisements.mediaId, media.id))
+    .where(inArray(advertisements.id, page.map((item) => item.id)))
     .orderBy(desc(advertisements.createdAt), asc(advertisementAssignments.position));
+}
+
+export async function getAdminAdvertisementCount() {
+  const { getDb } = await import("@/src/db");
+  const db = await getDb();
+  const rows = await db
+    .select({ count: sql<number>`cast(count(*) as integer)` })
+    .from(advertisements);
+
+  return Number(rows[0]?.count ?? 0);
 }
 
 export async function getAdvertisementMediaOptions(limit = 100) {
   const { getDb } = await import("@/src/db");
-    const db = await getDb();
+  const db = await getDb();
 
   return db
     .select({

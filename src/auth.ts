@@ -6,11 +6,29 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { getAuthSecret } from "@/src/config";
 import { users } from "@/src/db/schema";
 
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
+export function resolveSessionExpiresAt(
+  currentExpiry: unknown,
+  jwtExpirySeconds: unknown,
+  now = Date.now(),
+) {
+  if (typeof currentExpiry === "number" && Number.isFinite(currentExpiry)) {
+    return currentExpiry;
+  }
+
+  if (typeof jwtExpirySeconds === "number" && Number.isFinite(jwtExpirySeconds)) {
+    return jwtExpirySeconds * 1000;
+  }
+
+  return now + SESSION_MAX_AGE_SECONDS * 1000;
+}
+
 export const authOptions: NextAuthOptions = {
   secret: getAuthSecret(),
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   },
   cookies: {
     sessionToken: {
@@ -42,7 +60,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const { getDb } = await import("@/src/db");
-    const db = await getDb();
+        const db = await getDb();
 
         const user = await db.query.users.findFirst({
           where: eq(users.email, email),
@@ -74,6 +92,8 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
       }
 
+      token.sessionExpiresAt = resolveSessionExpiresAt(token.sessionExpiresAt, token.exp);
+
       return token;
     },
     async session({ session, token }) {
@@ -81,6 +101,8 @@ export const authOptions: NextAuthOptions = {
         session.user.id = (token.uid as string | undefined) ?? "";
         session.user.role = token.role as string | undefined;
       }
+
+      session.expiresAt = token.sessionExpiresAt as number;
 
       return session;
     },

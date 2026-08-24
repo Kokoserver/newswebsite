@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { hasPermission, requireAdminUser, requireArticleAccess } from "@/src/admin/permissions";
 import { checked, dateOrNull, optionalText, textValue } from "@/src/admin/shared";
+import { getSiteUrl } from "@/src/config";
 import { getDb } from "@/src/db";
 import {
   articleCategories, articleRevisions, articleTags, articles, auditLogs,
@@ -44,9 +45,18 @@ function ids(formData: FormData, key: string) {
   return formData.getAll(key).map(String).filter(Boolean);
 }
 
+function truncateAtWord(value: string, limit: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= limit) return normalized;
+  const shortened = normalized.slice(0, limit + 1);
+  const lastSpace = shortened.lastIndexOf(" ");
+  return shortened.slice(0, lastSpace > limit * 0.65 ? lastSpace : limit).trim();
+}
+
 function parseArticle(formData: FormData, actorId: string, canEditAll: boolean) {
   const title = textValue(formData, "title");
   const rawSlug = optionalText(formData, "slug") ?? title;
+  const slug = slugify(rawSlug, { lower: true, strict: true, trim: true });
   const renderedContent = sanitizeHtml(textValue(formData, "renderedContent"), {
     allowedTags: ["p", "h2", "h3", "h4", "strong", "em", "u", "s", "a", "blockquote", "ul", "ol", "li", "br", "hr", "code", "pre", "figure", "figcaption", "img", "video"],
     allowedAttributes: {
@@ -63,19 +73,22 @@ function parseArticle(formData: FormData, actorId: string, canEditAll: boolean) 
   try { content = JSON.parse(textValue(formData, "contentJson")); } catch { content = { type: "doc", content: [] }; }
   const status = textValue(formData, "status");
   const categories = ids(formData, "categoryIds");
+  const subtitle = optionalText(formData, "subtitle");
+  const excerpt = optionalText(formData, "excerpt");
+  const plainContent = renderedContent.replace(/<[^>]+>/g, " ");
   return articleInput.parse({
     title,
-    slug: slugify(rawSlug, { lower: true, strict: true, trim: true }),
-    subtitle: optionalText(formData, "subtitle"),
-    excerpt: optionalText(formData, "excerpt"),
+    slug,
+    subtitle,
+    excerpt,
     status: canEditAll ? status : status === "IN_REVIEW" ? "IN_REVIEW" : "DRAFT",
     type: textValue(formData, "type"),
     authorId: canEditAll ? textValue(formData, "authorId") : actorId,
     heroImageId: optionalText(formData, "heroImageId"),
     heroVideoId: optionalText(formData, "heroVideoId"),
-    seoTitle: optionalText(formData, "seoTitle"),
-    seoDescription: optionalText(formData, "seoDescription"),
-    canonicalUrl: optionalText(formData, "canonicalUrl"),
+    seoTitle: optionalText(formData, "seoTitle") ?? truncateAtWord(title, 70),
+    seoDescription: optionalText(formData, "seoDescription") ?? truncateAtWord(excerpt ?? subtitle ?? plainContent, 170),
+    canonicalUrl: optionalText(formData, "canonicalUrl") ?? `${getSiteUrl().replace(/\/+$/, "")}/articles/${slug}`,
     sourceName: optionalText(formData, "sourceName"),
     sourceUrl: optionalText(formData, "sourceUrl"),
     scheduledAt: dateOrNull(formData, "scheduledAt"),

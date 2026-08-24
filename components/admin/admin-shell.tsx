@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import SessionExpiryGuard from "@/components/session-expiry-guard";
 import type { AdminPermission, AdminUser } from "@/src/admin/permissions";
 
 const items: Array<{ href: string; label: string; permission: AdminPermission; icon: typeof House }> = [
@@ -29,10 +30,12 @@ export default function AdminShell({
   children,
   user,
   permissions,
+  sessionExpiresAt,
 }: {
   children: React.ReactNode;
   user: AdminUser;
   permissions: AdminPermission[];
+  sessionExpiresAt: number;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -41,6 +44,7 @@ export default function AdminShell({
 
   return (
     <div className={`admin-app${compact ? " is-compact" : ""}`}>
+      <SessionExpiryGuard expiresAt={sessionExpiresAt} />
       <aside className={`admin-sidebar${open ? " is-open" : ""}`}>
         <div className="admin-sidebar-brand">
           <span className="admin-brand-mark"><BookOpenText size={19} /></span>

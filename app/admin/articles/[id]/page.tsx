@@ -1,4 +1,6 @@
 import { asc, eq, inArray } from "drizzle-orm";
+import { BarChart3 } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ArticleForm from "@/components/admin/article-form";
@@ -23,5 +25,5 @@ export default async function EditArticlePage({ params, searchParams }: { params
   ]);
   if (!article) notFound();
   const canAssign = hasPermission(actor.role, "articles:edit-all");
-  return <>{query.saved ? <div className="admin-toast">Article changes saved.</div> : null}<header className="admin-page-header compact"><div><span className="admin-eyebrow">Editing</span><h1>{article.title}</h1><p>Last updated {new Date(article.updatedAt).toLocaleString()}.</p></div><form action={archiveArticle.bind(null, id)}><SubmitButton danger>Archive article</SubmitButton></form></header><ArticleForm article={article} action={saveArticle.bind(null, id)} authors={canAssign ? authors : authors.filter((author) => author.id === actor.id)} categories={categoryRows} tags={tagRows} selectedCategoryIds={selectedCategories.map((item) => item.id)} selectedTagIds={selectedTags.map((item) => item.id)} primaryCategoryId={selectedCategories.find((item) => item.primary)?.id} canPublish={hasPermission(actor.role, "articles:publish")} canAssign={canAssign} /></>;
+  return <>{query.saved ? <div className="admin-toast">Article changes saved.</div> : null}<header className="admin-page-header compact"><div><span className="admin-eyebrow">Editing</span><h1>{article.title}</h1><p>Last updated {new Date(article.updatedAt).toLocaleString()}.</p></div><div className="admin-detail-actions"><Link className="admin-secondary-link" href={`/admin/articles/${id}/details`}><BarChart3 size={15} />Article details</Link><form action={archiveArticle.bind(null, id)}><SubmitButton danger>Archive article</SubmitButton></form></div></header><ArticleForm article={article} action={saveArticle.bind(null, id)} authors={canAssign ? authors : authors.filter((author) => author.id === actor.id)} categories={categoryRows} tags={tagRows} selectedCategoryIds={selectedCategories.map((item) => item.id)} selectedTagIds={selectedTags.map((item) => item.id)} primaryCategoryId={selectedCategories.find((item) => item.primary)?.id} canPublish={hasPermission(actor.role, "articles:publish")} canAssign={canAssign} /></>;
 }

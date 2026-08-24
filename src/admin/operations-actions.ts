@@ -93,8 +93,9 @@ export async function deleteHomepageItem(itemId: string) { const actor = await r
 
 export async function moderateComment(commentId: string, formData: FormData) {
   const actor = await requireAdminUser("comments:moderate"); const status = z.enum(commentStatusValues).parse(textValue(formData, "status")); const db = await getDb();
-  await db.transaction(async (tx) => { await tx.update(comments).set({ status, moderatedById: actor.id, moderatedAt: new Date(), deletedAt: status === "DELETED" ? new Date() : null }).where(eq(comments.id, commentId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "UPDATE", entityType: "comment", entityId: commentId, summary: `Marked comment as ${status.toLowerCase()}`, metadata: { status } }); });
+  const articleId = await db.transaction(async (tx) => { const [updated] = await tx.update(comments).set({ status, moderatedById: actor.id, moderatedAt: new Date(), deletedAt: status === "DELETED" ? new Date() : null }).where(eq(comments.id, commentId)).returning({ articleId: comments.articleId }); await tx.insert(auditLogs).values({ actorId: actor.id, articleId: updated?.articleId, action: "UPDATE", entityType: "comment", entityId: commentId, summary: `Marked comment as ${status.toLowerCase()}`, metadata: { status } }); return updated?.articleId; });
   invalidateAdmin("/admin/comments", ["/"]);
+  if (articleId) revalidatePath(`/admin/articles/${articleId}/details`);
 }
 
 const adSchema = z.object({ name: z.string().trim().min(2).max(200), status: z.enum(advertisementStatusValues), targetUrl: z.url(), mediaId: z.string().uuid().nullable(), slot: z.enum(advertisementSlotValues), position: z.number().int().positive(), startsAt: z.date(), endsAt: z.date() });
@@ -109,6 +110,8 @@ function newSetupToken() { const token = randomBytes(32).toString("hex"); return
 export async function inviteUser(formData: FormData) {
   const actor = await requireAdminUser("users:manage"); const role = z.enum(userRoleValues).parse(textValue(formData, "role")); if (role === "SUPER_ADMIN" && actor.role !== "SUPER_ADMIN") throw new Error("Only a super administrator can assign that role.");
   const email = z.email().parse(textValue(formData, "email").toLowerCase()); const name = z.string().trim().min(2).max(200).parse(textValue(formData, "name")); const setup = newSetupToken(); const db = await getDb();
+  const existing = await db.query.users.findFirst({ columns: { id: true }, where: eq(users.email, email) });
+  if (existing) redirect(`/admin/users?q=${encodeURIComponent(email)}&existing=${encodeURIComponent(email)}`);
   await db.transaction(async (tx) => { const [created] = await tx.insert(users).values({ email, name, role, status: "INVITED" }).returning({ id: users.id }); await tx.insert(passwordResetTokens).values({ userId: created.id, tokenHash: setup.tokenHash, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }); await tx.insert(auditLogs).values({ actorId: actor.id, action: "CREATE", entityType: "user", entityId: created.id, summary: `Invited ${name} as ${role}`, metadata: {} }); }); revalidatePath("/admin/users"); redirect(`/admin/users?invite=${encodeURIComponent(`${getSiteUrl()}/reset-password?token=${setup.token}`)}`);
 }
 

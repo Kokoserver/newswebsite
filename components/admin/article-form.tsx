@@ -1,9 +1,12 @@
 import Link from "next/link";
 
+import ArticleDiscoveryFields from "@/components/admin/article-discovery-fields";
 import ArticleEditor from "@/components/admin/article-editor";
+import InfoTooltip from "@/components/admin/info-tooltip";
 import MediaPickerField from "@/components/admin/media-picker-field";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { formatDateTimeLocal, humanize } from "@/src/admin/shared";
+import { getSiteUrl } from "@/src/config";
 import { articleStatusValues, articleTypeValues } from "@/src/db/schema";
 
 type ArticleRecord = {
@@ -50,23 +53,28 @@ export default function ArticleForm({
           <label>Excerpt<textarea name="excerpt" rows={3} maxLength={1200} defaultValue={article?.excerpt ?? ""} /></label>
         </section>
         <section className="admin-card admin-form-section">
-          <div className="admin-section-heading"><div><span className="admin-eyebrow">Story body</span><h2>Write and format</h2></div><small>Changes create a revision automatically.</small></div>
+          <div className="admin-section-heading"><div><span className="admin-eyebrow">Story body</span><h2>Write and format <InfoTooltip text="Use the toolbar for headings, links, lists and media. Every save creates a recoverable article revision." /></h2></div><small>Changes create a revision automatically.</small></div>
           <ArticleEditor initialHtml={article?.renderedContent} />
         </section>
         <section className="admin-card admin-form-section">
-          <div className="admin-section-heading"><div><span className="admin-eyebrow">Discovery</span><h2>Search and source</h2></div></div>
-          <div className="admin-form-grid two">
-            <label>SEO title<input name="seoTitle" maxLength={70} defaultValue={article?.seoTitle ?? ""} /><small>{article?.seoTitle?.length ?? 0}/70 characters</small></label>
-            <label>Canonical URL<input name="canonicalUrl" type="url" defaultValue={article?.canonicalUrl ?? ""} /></label>
-            <label className="span-two">SEO description<textarea name="seoDescription" rows={3} maxLength={170} defaultValue={article?.seoDescription ?? ""} /></label>
-            <label>Source name<input name="sourceName" defaultValue={article?.sourceName ?? ""} /></label>
-            <label>Source URL<input name="sourceUrl" type="url" defaultValue={article?.sourceUrl ?? ""} /></label>
-          </div>
+          <div className="admin-section-heading"><div><span className="admin-eyebrow">Discovery</span><h2>Search and source <InfoTooltip text="SEO fields control how the article appears in search results. Generated defaults follow the headline, excerpt and slug until you edit them." /></h2></div></div>
+          <ArticleDiscoveryFields
+            initialTitle={article?.title}
+            initialSubtitle={article?.subtitle}
+            initialExcerpt={article?.excerpt}
+            initialSlug={article?.slug}
+            initialSeoTitle={article?.seoTitle}
+            initialSeoDescription={article?.seoDescription}
+            initialCanonicalUrl={article?.canonicalUrl}
+            initialSourceName={article?.sourceName}
+            initialSourceUrl={article?.sourceUrl}
+            siteUrl={getSiteUrl().replace(/\/+$/, "")}
+          />
         </section>
       </div>
       <aside className="admin-editor-aside">
         <section className="admin-card admin-form-section admin-publish-card">
-          <span className="admin-eyebrow">Workflow</span>
+          <div className="admin-help-heading"><span className="admin-eyebrow">Workflow</span><InfoTooltip text="Choose the editorial state, schedule publication when needed, assign ownership, then save. Only authorized roles can publish." /></div>
           <label>Status<select name="status" defaultValue={article?.status ?? "DRAFT"}>{articleStatusValues.filter((status) => canPublish || ["DRAFT", "IN_REVIEW"].includes(status)).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label>
           <label>Schedule time<input name="scheduledAt" type="datetime-local" defaultValue={formatDateTimeLocal(article?.scheduledAt)} /></label>
           <label>Author<select name="authorId" defaultValue={article?.authorId ?? authors[0]?.id} disabled={!canAssign}>{authors.map((author) => <option key={author.id} value={author.id}>{author.name ?? author.email}</option>)}</select>{!canAssign ? <input type="hidden" name="authorId" value={article?.authorId ?? authors[0]?.id} /> : null}</label>
@@ -76,16 +84,15 @@ export default function ArticleForm({
           {article?.status === "PUBLISHED" ? <Link className="admin-secondary-link" target="_blank" href={`/articles/${article.slug}`}>Open published story</Link> : null}
         </section>
         <section className="admin-card admin-form-section">
-          <span className="admin-eyebrow">Classification</span>
+          <div className="admin-help-heading"><span className="admin-eyebrow">Classification</span><InfoTooltip text="Categories determine where the story appears. The primary category is used as its main section; tags support related content and discovery." /></div>
           <fieldset className="admin-choice-list"><legend>Categories</legend>{categories.map((category) => <label key={category.id}><input type="checkbox" name="categoryIds" value={category.id} defaultChecked={selectedCategoryIds.includes(category.id)} />{category.name}</label>)}</fieldset>
           <label>Primary category<select name="primaryCategoryId" defaultValue={primaryCategoryId ?? ""}><option value="">Use first selected</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <fieldset className="admin-choice-list"><legend>Tags</legend>{tags.map((tag) => <label key={tag.id}><input type="checkbox" name="tagIds" value={tag.id} defaultChecked={selectedTagIds.includes(tag.id)} />{tag.name}</label>)}</fieldset>
         </section>
         <section className="admin-card admin-form-section">
-          <span className="admin-eyebrow">Visuals</span>
-          <MediaPickerField name="heroImageId" label="Hero image" kind="IMAGE" initialId={article?.heroImageId} />
-          <MediaPickerField name="heroVideoId" label="Hero video" kind="VIDEO" initialId={article?.heroVideoId} />
-          <Link className="admin-secondary-link" href="/admin/media">Open media library</Link>
+          <div className="admin-help-heading"><span className="admin-eyebrow">Visuals</span><InfoTooltip text="The article banner leads the story visually. A featured video is optional. Select an existing asset or upload one from either media-library dialog." /></div>
+          <MediaPickerField name="heroImageId" label="Article banner" kind="IMAGE" initialId={article?.heroImageId} />
+          <MediaPickerField name="heroVideoId" label="Featured video" kind="VIDEO" initialId={article?.heroVideoId} />
         </section>
       </aside>
     </form>

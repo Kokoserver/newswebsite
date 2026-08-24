@@ -19,11 +19,11 @@ export default function MediaUploader({ maxBytes, configured }: { maxBytes: numb
   return (
     <form className="admin-upload-card" onSubmit={upload}>
       <div className="admin-upload-icon"><UploadCloud size={27} /></div>
-      <div><strong>Upload newsroom media</strong><span>Images and videos up to {Math.floor(maxBytes / 1024 / 1024)} MB.</span>{configured ? <small>Bunny Storage and CDN delivery are connected.</small> : <small>Configure the Bunny environment variables before uploading.</small>}</div>
+      <div><strong>Upload media</strong><span>Add images and videos up to {Math.floor(maxBytes / 1024 / 1024)} MB.</span>{configured ? <small>Files are stored securely and available across the newsroom.</small> : <small>Uploads are unavailable. Contact an administrator.</small>}</div>
       <label className="admin-file-button">Choose file<input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required /></label>
       <label>Title<input name="title" maxLength={240} placeholder="Optional display title" /></label>
       <label>Alt text<input name="altText" maxLength={320} placeholder="Describe the visual" /></label>
-      <button className="admin-button" disabled={pending || !configured}>{pending ? "Uploading..." : configured ? "Upload to Bunny" : "Bunny not configured"}</button>
+      {configured ? <button className="admin-button" disabled={pending}>{pending ? "Uploading..." : "Upload"}</button> : null}
       {message ? <p aria-live="polite">{message}</p> : null}
     </form>
   );

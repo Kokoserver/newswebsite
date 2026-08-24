@@ -79,6 +79,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ message: "Media uploaded successfully.", item: createdMedia }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ message: error instanceof Error ? error.message : "Upload failed." }, { status: 500 });
+    console.error("Media upload failed", error);
+    return NextResponse.json(
+      { message: "The media service could not complete the upload. Please try again." },
+      { status: 500 },
+    );
   }
 }

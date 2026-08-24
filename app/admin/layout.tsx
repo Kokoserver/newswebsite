@@ -1,5 +1,6 @@
 import AdminShell from "@/components/admin/admin-shell";
 import { hasPermission, requireAdminUser, type AdminPermission } from "@/src/admin/permissions";
+import { getSession } from "@/src/session";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,11 @@ const allPermissions: AdminPermission[] = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireAdminUser();
+  const [user, session] = await Promise.all([requireAdminUser(), getSession()]);
   const permissions = allPermissions.filter((permission) => hasPermission(user.role, permission));
-  return <AdminShell user={user} permissions={permissions}>{children}</AdminShell>;
+  return (
+    <AdminShell user={user} permissions={permissions} sessionExpiresAt={session!.expiresAt}>
+      {children}
+    </AdminShell>
+  );
 }
