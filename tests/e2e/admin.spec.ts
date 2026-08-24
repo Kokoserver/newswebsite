@@ -42,7 +42,7 @@ test("admin can search inline media", async ({ page }) => {
   const picker = page.getByRole("dialog", { name: "Insert media" });
   await expect(picker.getByPlaceholder("Search images and videos")).toBeVisible();
   await expect(picker.locator(".admin-editor-media-grid > button").first()).toBeVisible({ timeout: 30_000 });
-  await picker.getByRole("tab", { name: "Upload new", exact: true }).click();
+  await picker.getByRole("tab", { name: "Upload", exact: true }).click();
   await expect(picker.getByRole("button", { name: "Upload and insert" })).toBeVisible();
 });
 
