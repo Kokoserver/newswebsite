@@ -14,5 +14,5 @@ export function getAuthSecret() {
 }
 
 export function commentAutoApproveEnabled() {
-  return (process.env.COMMENT_AUTO_APPROVE ?? "true") !== "false";
+  return (process.env.COMMENT_AUTO_APPROVE ?? "false") === "true";
 }

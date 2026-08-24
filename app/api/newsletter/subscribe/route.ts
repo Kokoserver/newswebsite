@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { newsletterSubscribers } from "@/src/db/schema";
+import { emailConfigured } from "@/src/email";
+import { sendNewsletterWelcomeEmail } from "@/src/email/templates";
 
 const subscribeSchema = z.object({
   email: z.email("Please provide a valid email address.").max(320),
@@ -10,7 +12,7 @@ const subscribeSchema = z.object({
 
 export async function POST(request: Request) {
   const { getDb } = await import("@/src/db");
-    const db = await getDb();
+  const db = await getDb();
 
   const body = await request.json().catch(() => null);
   const parsed = subscribeSchema.safeParse(body);
@@ -23,6 +25,16 @@ export async function POST(request: Request) {
   }
 
   const email = parsed.data.email.trim().toLowerCase();
+  const sendWelcome = () => {
+    if (!emailConfigured()) return;
+    after(async () => {
+      try {
+        await sendNewsletterWelcomeEmail(email);
+      } catch (error) {
+        console.error("Newsletter welcome email delivery failed.", error);
+      }
+    });
+  };
 
   const existing = await db.query.newsletterSubscribers.findFirst({
     where: eq(newsletterSubscribers.email, email),
@@ -39,6 +51,7 @@ export async function POST(request: Request) {
         })
         .where(eq(newsletterSubscribers.id, existing.id));
 
+      sendWelcome();
       return NextResponse.json({ ok: true, alreadySubscribed: false });
     }
 
@@ -51,5 +64,6 @@ export async function POST(request: Request) {
     confirmedAt: new Date(),
   });
 
+  sendWelcome();
   return NextResponse.json({ ok: true, alreadySubscribed: false }, { status: 201 });
 }

@@ -22,6 +22,16 @@ const routeLimits: RouteLimit[] = [
     max: 10,
   },
   {
+    pathPattern: /^\/api\/auth\/forgot-password$/,
+    windowMs: 15 * 60_000,
+    max: 5,
+  },
+  {
+    pathPattern: /^\/api\/auth\/reset-password$/,
+    windowMs: 15 * 60_000,
+    max: 5,
+  },
+  {
     pathPattern: /^\/api\/newsletter\//,
     windowMs: 5 * 60_000,
     max: 5,
