@@ -363,7 +363,7 @@ function SectionRiver({
   }
 
   return (
-    <section className="section-river">
+    <section className={`section-river ${title === "Top Stories" ? "top-stories-section" : ""}`}>
       <div className="section-river-heading">
         <h2>
           <span>Exclusive</span> {title}
@@ -374,7 +374,7 @@ function SectionRiver({
       </div>
       <SectionLeadStory story={lead} />
       <div className="section-card-grid">
-        {rest.slice(0, 6).map((story) => (
+        {rest.slice(0, title === "Top Stories" ? 4 : 6).map((story) => (
           <ListedStoryCard story={story} key={story.id} />
         ))}
       </div>
@@ -436,7 +436,7 @@ export default async function Home() {
   ] = await Promise.all([
       getNavbarCategories(),
       getHomepageData(),
-      getLatestArticles(48),
+      getLatestArticles(32),
       getMostReadArticles(8),
       getTrendingArticles(8),
       getVideoMedia(6),
@@ -447,7 +447,10 @@ export default async function Home() {
   const sectionByKey = new Map(homepageData.map((section) => [section.key, section]));
   const heroItems = sectionByKey.get("hero")?.items ?? [];
   const featuredItems = sectionByKey.get("featured")?.items ?? [];
-  const categorySections = homepageData.filter((section) => section.kind === "CATEGORY");
+  // Keep the landing page focused; every remaining section stays available in navigation.
+  const categorySections = homepageData
+    .filter((section) => section.kind === "CATEGORY")
+    .slice(0, 4);
   const latestStories = latestArticles.map(listedFromArticle);
   const fallbackHeroItems = latestArticles.slice(0, 5).map((item) => homepageItemFromArticle(item));
   const displayHeroItems = heroItems.length > 0 ? heroItems : fallbackHeroItems;
@@ -459,7 +462,7 @@ export default async function Home() {
     ...featuredItems.map((item, index) => listedFromHomepage(item, `featured-${index}`)),
     ...latestStories.slice(0, 4),
   ]);
-  const visibleSectionStories = 7;
+  const visibleSectionStories = 5;
   const sectionStories = (section: (typeof categorySections)[number]) => {
     const curated = section.items.map((item, index) =>
       listedFromHomepage(item, `${section.key}-${index}`),
@@ -507,6 +510,7 @@ export default async function Home() {
   });
   latestStories.forEach(addSidebarStory);
 
+  const categoryRailSections = Array.from(sidebarCategoryMap.values()).slice(0, 4);
   const railSectionGroups = [
     {
       id: "dont-miss",
@@ -514,7 +518,7 @@ export default async function Home() {
       href: "/latest",
       stories: railStories.slice(0, 6),
     },
-    ...Array.from(sidebarCategoryMap.values()),
+    ...categoryRailSections,
     {
       id: "more-latest",
       title: "More Latest",
@@ -618,9 +622,8 @@ export default async function Home() {
                 <BarChart3 size={15} /> Trending now
               </h2>
               <ol className="trending-ranking">
-                {trendingArticles.map((item, index) => (
+                {trendingArticles.map((item) => (
                   <li key={item.id}>
-                    <span>{index + 1}</span>
                     <Link className="trending-thumb" href={`/articles/${item.slug}`}>
                       {item.imageUrl ? (
                         <Image
@@ -646,9 +649,13 @@ export default async function Home() {
             <div className="rail-widget most-read-widget">
               <h2>Most read</h2>
               <ol className="most-read-ranking">
-                {mostReadArticles.map((item, index) => (
+                {mostReadArticles.map((item) => (
                   <li className="ranking" key={item.id}>
-                    <span>{index + 1}</span>
+                    <div className="ranking-copy">
+                      {item.categoryName ? <em>{item.categoryName}</em> : null}
+                      <Link href={`/articles/${item.slug}`}>{item.title}</Link>
+                      <strong>{item.viewCount.toLocaleString()}</strong>
+                    </div>
                     <Link className="ranking-thumb" href={`/articles/${item.slug}`}>
                       {item.imageUrl ? (
                         <Image
@@ -662,15 +669,11 @@ export default async function Home() {
                         <b>{item.categoryName?.slice(0, 1) ?? "D"}</b>
                       )}
                     </Link>
-                    <div className="ranking-copy">
-                      {item.categoryName ? <em>{item.categoryName}</em> : null}
-                      <Link href={`/articles/${item.slug}`}>{item.title}</Link>
-                      <strong>{item.viewCount.toLocaleString()}</strong>
-                    </div>
                   </li>
                 ))}
               </ol>
             </div>
+            <AdvertisementSlot ad={railAdAt(1)} variant="rail" />
             <div className="rail-widget">
               <h2>
                 <CalendarDays size={15} /> Editor’s picks
@@ -689,10 +692,10 @@ export default async function Home() {
             </div>
             {railSectionGroups.map((section, index) => (
               <div className="rail-section-stack" key={section.id}>
-                {index > 0 && index % 6 === 0 ? (
-                  <AdvertisementSlot ad={railAdAt(Math.floor(index / 2))} variant="rail" />
-                ) : null}
                 <RailSection title={section.title} href={section.href} stories={section.stories} />
+                {index < railSectionGroups.length - 1 ? (
+                  <AdvertisementSlot ad={railAdAt(index + 1)} variant="rail" />
+                ) : null}
               </div>
             ))}
           </div>

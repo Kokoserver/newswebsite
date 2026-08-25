@@ -133,6 +133,7 @@ export default async function SectionArchivePage({
                       width={960}
                       height={600}
                       sizes="(max-width: 960px) 100vw, 960px"
+                      style={{ color: "transparent" }}
                       priority
                     />
                   </Link>
@@ -158,6 +159,7 @@ export default async function SectionArchivePage({
                           width={720}
                           height={450}
                           sizes="(max-width: 768px) 100vw, 460px"
+                          style={{ color: "transparent" }}
                         />
                       </Link>
                       <span>{title}</span>
@@ -180,6 +182,7 @@ export default async function SectionArchivePage({
                           width={720}
                           height={450}
                           sizes="(max-width: 768px) 100vw, 460px"
+                          style={{ color: "transparent" }}
                         />
                       </Link>
                       <div>
@@ -205,6 +208,7 @@ export default async function SectionArchivePage({
                       width={720}
                       height={450}
                       sizes="(max-width: 768px) 100vw, 460px"
+                      style={{ color: "transparent" }}
                     />
                   </Link>
                   <div>
