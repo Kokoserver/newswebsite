@@ -890,6 +890,7 @@ input {
 
 .user-menu {
   position: relative;
+  z-index: 100;
   display: flex;
   align-items: center;
 }
@@ -920,7 +921,7 @@ input {
   position: absolute;
   top: calc(100% + 0.55rem);
   right: 0;
-  z-index: 60;
+  z-index: 100;
   min-width: 190px;
   padding: 0.5rem;
   border: 1px solid var(--brand-line);

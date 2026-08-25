@@ -32,7 +32,7 @@ export default function UserMenu({ size = 18 }: UserMenuProps) {
 
   const displayName = user.name ?? user.email;
   const firstName = displayName.split(" ")[0];
-  const canManageAds = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(user.role ?? "");
+  const canViewDashboard = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(user.role ?? "");
   const expiresAt = session?.expires ? new Date(session.expires).getTime() : Number.NaN;
 
   return <>
@@ -41,7 +41,7 @@ export default function UserMenu({ size = 18 }: UserMenuProps) {
       <summary aria-label={`Signed in as ${displayName}`}><UserRound size={size} /><span className="user-menu-name">{firstName}</span></summary>
       <div className="user-menu-dropdown">
         <span>{displayName}</span>
-        {canManageAds ? <Link href="/admin/ads">Manage ads</Link> : null}
+        {canViewDashboard ? <Link href="/admin">Dashboard</Link> : null}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- sign-out is an API route */}
         <a href="/api/auth/signout">Sign out</a>
       </div>

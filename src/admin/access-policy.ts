@@ -37,7 +37,7 @@ const rolePermissions: Record<UserRole, readonly AdminPermission[]> = {
     "homepage:manage", "taxonomy:manage", "comments:moderate", "ads:manage",
     "analytics:view",
   ],
-  AUTHOR: ["dashboard:view", "articles:view", "articles:create", "media:view", "media:upload"],
+  AUTHOR: ["articles:view", "articles:create", "media:view", "media:upload"],
   READER: [],
 };
 
