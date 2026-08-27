@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { createClient } from "@libsql/client";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { hash } from "bcryptjs";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 
@@ -44,65 +44,277 @@ const connection = createClient({
 const db = drizzle(connection, { schema });
 
 const newsCategories = [
-  ["News", "news", "Breaking stories, investigations and live updates."],
-  ["Royals", "royals", "Royal family coverage, public appearances and palace analysis."],
-  ["U.S.", "us", "Major U.S. headlines, politics, crime, courts and culture."],
+  ["News", "news", "Breaking stories, investigations and live updates from the global newsroom."],
+  ["UK", "uk", "British politics, communities, business, culture and diaspora life."],
+  ["USA", "usa", "American politics, culture, courts, business and diaspora stories."],
+  ["Nigeria", "nigeria", "National news, politics, business, culture and public life from Nigeria."],
+  ["Ghana", "ghana", "Ghanaian news, politics, business, entertainment and society."],
+  ["Africa", "africa", "Continental politics, enterprise, innovation, culture and human stories."],
   ["World", "world", "Global developments, diplomacy, conflict and international affairs."],
-  ["Politics", "politics", "Policy, elections and decisions shaping daily life."],
-  ["Showbiz", "showbiz", "Celebrity news, red carpets, television, film and entertainment."],
-  ["Femail", "femail", "Lifestyle, relationships, fashion, beauty and real-life features."],
-  ["Health", "health", "Medical news, wellness, research and practical health guidance."],
-  ["Science", "science", "Space, technology, discovery, climate and scientific research."],
-  ["Money", "money", "Personal finance, property, pensions, savings and consumer news."],
-  ["Travel", "travel", "Holiday inspiration, airline news, hotels and destination guides."],
+  ["Business", "business", "Markets, companies, entrepreneurs, money and the commercial world."],
+  ["Politics", "politics", "Power, elections, policy and decisions shaping public life."],
+  ["Entertainment", "entertainment", "Film, music, television, celebrity, culture and creative industries."],
   ["Sport", "sport", "Major results, big events and personalities from global sport."],
+  ["Lifestyle", "lifestyle", "Health, travel, fashion, property, family and everyday living."],
+] as const;
+
+const legacyCategorySlugs = [
+  "royals",
+  "us",
+  "showbiz",
+  "femail",
+  "health",
+  "science",
+  "money",
+  "travel",
 ] as const;
 
 const staffUsers = [
-  ["Daily Chronicle Admin", "admin@example.com", "SUPER_ADMIN"],
+  ["THE WORLD CURRENT Editor", "admin@example.com", "SUPER_ADMIN"],
   ["Maya Fletcher", "maya.fletcher@example.com", "EDITOR"],
   ["Daniel Okafor", "daniel.okafor@example.com", "AUTHOR"],
-  ["Priya Shah", "priya.shah@example.com", "AUTHOR"],
+  ["Ama Mensah", "ama.mensah@example.com", "AUTHOR"],
   ["Elliot Grant", "elliot.grant@example.com", "ADMIN"],
 ] as const;
 
 const tagNames = [
   "Breaking News",
   "Exclusive",
-  "Pictures",
   "Analysis",
+  "Opinion",
+  "Interview",
   "Explainer",
   "Live Updates",
-  "Consumer",
-  "Health Advice",
-  "Celebrity",
-  "Property",
-  "Travel Tips",
-  "Technology",
+  "Diaspora",
+  "Africa Rising",
+  "Technology & AI",
+  "Culture",
+  "Business",
+  "Human Interest",
 ] as const;
 
-const headlineTemplates = [
-  "Inside the late-night talks that changed everything",
-  "Family's private meeting becomes the story everyone is discussing",
-  "Pictures reveal the moment emergency crews arrived at the scene",
-  "Experts warn readers to check this detail before the deadline",
-  "A-list star breaks silence after viral interview divides fans",
-  "The simple habit doctors say can transform your morning routine",
-  "Homeowners brace for fresh squeeze as lenders update forecasts",
-  "Royal watchers spot subtle gesture during public appearance",
-  "Holiday destination introduces strict new rules for visitors",
-  "Scientists explain the mystery behind a strange new discovery",
-  "Shoppers race to buy budget item compared with designer favourite",
-  "Parents divided after policy change is announced before holidays",
-] as const;
+const categoryHeadlines: Record<string, string[]> = {
+  news: [
+    "Breaking: Global leaders agree fresh diplomatic talks in the coming weeks",
+    "Live updates as world powers respond to the latest international crisis",
+    "Explainer: What the new global security pact means for ordinary readers",
+    "Exclusive: Inside the negotiations reshaping cross-border policy",
+    "Investigations desk: How key decisions reached the public this week",
+    "Diaspora summit opens as delegates map out a shared agenda for change",
+    "Global newsroom briefing: five stories shaping the world today",
+    "Analysis: The forces driving the biggest headlines of the week",
+    "Press conferences and pledges: a round-up of a decisive news week",
+    "In depth: The story behind the story dominating world coverage",
+    "Fact-checking the claims making the rounds across social media",
+    "What we know so far as events unfold around the world today",
+  ],
+  uk: [
+    "UK ministers face questions after new domestic policy announcement",
+    "British high streets see a shift in how shoppers and businesses adapt",
+    "Local councils warn over public services funding pressures this year",
+    "Diaspora communities across Britain mark a week of cultural events",
+    "London transit upgrade brings fresh plans for commuters and businesses",
+    "UK housing market data shows how families are responding to prices",
+    "Scottish and Welsh leaders weigh in on a sensitive national debate",
+    "British universities and startups race to keep talent at home",
+    "A landmark court ruling that could reshape everyday life in Britain",
+    "Garden cities and green belts: the planning row dividing opinion",
+    "UK exporters look abroad as trade deals open up new opportunities",
+    "Inside the British cultural calendar drawing crowds this season",
+  ],
+  usa: [
+    "US politics: primaries heat up as candidates set out their platforms",
+    "American courts deliver a decision that will echo for years",
+    "Midwest manufacturing towns pin hopes on new federal investment",
+    "US border and port cities confront shifted trade and migration flows",
+    "Healthcare debate returns to Congress as premiums rise again",
+    "Wall Street reacts to the latest jobs and inflation snapshot",
+    "California tech hubs and Texas startups eye a changing landscape",
+    "America's diaspora and immigrant stories take centre stage this week",
+    "Midterm signals: what local results could mean for the White House",
+    "US infrastructure bill brings road and rail projects to reality",
+    "Campus life and cost-of-living concerns shape young American voters",
+    "A climate accord test for American businesses and households",
+  ],
+  nigeria: [
+    "Nigeria's finance ministry unveils new plans to stabilise the naira",
+    "Lagos entrepreneurs expand as Afrobeats and tech draw global money",
+    "Nigerian farmers and exporters welcome renewed trade agreements",
+    "Abuja responds to power grid reforms sparking both hope and debate",
+    "Education push: states commit to reopening and rebuilding classrooms",
+    "Nollywood's global moment as streaming giants back local productions",
+    "Youth unemployment data prompts new job-creation pledges in Nigeria",
+    "Oil-producing regions weigh the economics of the energy transition",
+    "Election season begins as parties pick candidates and set agendas",
+    "Healthcare workers call for investment as services come under strain",
+    "Northern and coastal states see infrastructure spending announced",
+    "Diaspora remittances rise, supporting families and small businesses",
+  ],
+  ghana: [
+    "Ghana's cocoa sector eyes premium prices as global demand grows",
+    "Accra's tech scene draws international founders and venture capital",
+    "Gold Coast economy: new figures show how households are coping",
+    "Ghanaian filmmakers win international audiences with homegrown stories",
+    "Asante and coastal communities celebrate a season of festivals",
+    "Ghana's ports expand to handle rising regional trade volumes",
+    "Education reform plan unveiled for schools across the country",
+    "Health ministry launches drive to expand rural clinic coverage",
+    "Ghana's music stars top charts as the industry goes global",
+    "Tourism push aims to draw visitors to castles, beaches and parks",
+    "Farmers and agro-processors back new rice and yam value chains",
+    "Civil society questions spending priorities ahead of budget season",
+  ],
+  africa: [
+    "Africa's free trade area moves to a new phase of implementation",
+    "Continental leaders meet to coordinate response to climate shocks",
+    "African startups reach record funding in the latest investment round",
+    "East African drought response draws aid pledges from abroad",
+    "Rail and port corridor projects aim to boost cross-border commerce",
+    "Pan-African culture: music and film travel further than ever",
+    "African central banks weigh inflation amid global rate pressure",
+    "Digital identity pushes promise wider access to banking and health",
+    "Renewables drive: solar projects light up villages across the continent",
+    "African Union peacekeeping decisions come under fresh scrutiny",
+    "Young innovators tackle food, water and energy across the region",
+    "Diaspora investors target home-grown infrastructure and property",
+  ],
+  world: [
+    "World diplomacy: summit drafts a new declaration on cooperation",
+    "Global markets open cautiously as central banks weigh rate moves",
+    "Conflicts abroad raise humanitarian concerns for aid agencies",
+    "Climate summit sets fresh targets that divide rich and poor nations",
+    "European capitals weigh response to shifting energy and trade ties",
+    "Asia-Pacific leaders agree a framework for cross-border commerce",
+    "Latin America election wave reaches a defining weekend",
+    "Middle East peace efforts resume after a fraught diplomatic round",
+    "Global food prices ease but supply chain worries persist",
+    "United Nations agencies call for funding to meet urgent needs",
+    "World Bank forecasts a modest recovery for emerging economies",
+    "International courts deliver rulings with far-reaching consequences",
+  ],
+  business: [
+    "Business analysis: how companies are navigating higher borrowing costs",
+    "Tech IPOs return as venture markets show signs of a revival",
+    "Retailers adapt store networks as online spending settles",
+    "Small business owners share their outlook on costs and demand",
+    "Banks and fintechs compete for a new generation of customers",
+    "Supply chain shifts see manufacturers move production closer to home",
+    "Energy firms face pressure to show low-carbon transition plans",
+    "Startups in fintech and clean energy lead the latest funding round",
+    "Workplace trends: hybrid roles and pay transparency take hold",
+    "Property markets cool as mortgage rates begin to bite",
+    "Airlines and tourism operators bet on a strong travel season",
+    "Stock market week ahead: what investors are watching closely",
+  ],
+  politics: [
+    "Political analysis: the decisions and divisions shaping the agenda",
+    "Coalition talks intensify as parties search for a governing majority",
+    "Parliament debates clamping down on lobbying and campaign finance",
+    "Policy explainer: what the latest reform really changes",
+    "State and local leaders push back against central government plans",
+    "Election watch: polls, promises and the issues voters prioritise",
+    "Ministers outline a new approach to public spending reviews",
+    "Opposition parties set out alternative plans before the next vote",
+    "Judicial decisions could upend a contested legislative agenda",
+    "Backbench revolt forces a rethink over a controversial bill",
+    "International politics: how foreign policy is playing at home",
+    "Political parties court the young and the diaspora vote",
+  ],
+  entertainment: [
+    "Entertainment: the box office hits and streaming sensations of the week",
+    "Award season builds as film and music nominations are unveiled",
+    "Celebrity interviews and the stories behind the headlines",
+    "Afrobeats and diaspora acts headline major international festivals",
+    "Hollywood and Nollywood explore new co-productions",
+    "Concerts and tours return as audiences get back to live shows",
+    "TV and film reviews: what critics and fans are saying this week",
+    "Music chart round-up: the tracks climbing the global charts",
+    "Backstage at fashion week: stars and designers on the red carpet",
+    "Streaming wars: the biggest new releases vying for attention",
+    "Documentaries, podcasts and books capturing the cultural moment",
+    "Celebrity charity and public life under the spotlight",
+  ],
+  sport: [
+    "Sport: the results, upsets and dramas from a packed fixture week",
+    "Football round-up: title races and European nights heat up",
+    "Athletics stars chase records at a landmark championship",
+    "Cricket and rugby: the big series making the headlines",
+    "Basketball and boxing bring crowd favourites back to the arena",
+    "Olympic and Commonwealth athletes set their sights on new goals",
+    "Transfer news and contract sagas dominating the back pages",
+    "Coaches explain the tactics behind a surprising run of form",
+    "National teams announce squads ahead of crucial qualifiers",
+    "Women's sport continues its record-breaking growth spurt",
+    "Grassroots clubs worry about funding and facilities",
+    "Sports science and injuries shaping the modern game",
+  ],
+  lifestyle: [
+    "Lifestyle: the wellness, health and everyday trends experts highlight",
+    "Travel desk picks the destinations and escapes worth your time",
+    "Home and property: how families are decorating on a budget",
+    "Family and relationships advice from the people who live it",
+    "Healthy eating: recipes and food ideas for busy weeks",
+    "Work-life balance and wellbeing in a changing world",
+    "Fashion and beauty trends crossing continents this season",
+    "Gardens, interiors and the joy of slow living",
+    "Parenthood and education: practical guidance for home life",
+    "Money management and saving tips for ordinary households",
+    "Weekend culture: books, walks, film and food to enjoy",
+    "Community features celebrating people and places nearby",
+  ],
+};
+
+const articlesPerCategory = 60;
 
 const videoEntries = [
-  ["Inheritance Dispute Video Explain", "inheritance-dispute-video-explain", "The essential morning headlines, picked and explained in minutes."],
-  ["Showbiz Interview", "showbiz-interview", "A-list star opens up in an exclusive one-on-one interview."],
-  ["Royal Report", "royal-report", "Palace insiders on the planning behind a major public reset."],
-  ["Money Matters", "money-matters", "Mortgage rates and household budgets explained."],
-  ["Health Check", "health-check", "The simple habit doctors say can improve your sleep."],
-  ["Sport Highlights", "sport-highlights", "The goals, drama and talking points from the weekend."],
+  ["The World Current Briefing", "world-current-briefing", "The essential global headlines, picked and explained in minutes."],
+  ["Africa Business Interview", "africa-business-interview", "A founder explains how African enterprise is reaching global markets."],
+  ["Diaspora Report", "diaspora-report", "Stories connecting London, Lagos, Accra, New York and beyond."],
+  ["Politics Live", "politics-live", "The decisions, debates and election signals shaping public life."],
+  ["Culture Current", "culture-current", "Music, film, fashion and ideas moving between continents."],
+  ["Sport Highlights", "sport-highlights", "The results, drama and talking points from global sport."],
+  ["Breaking: World Security Summit", "breaking-world-security-summit", "Leaders gather in London for emergency talks on the new security pact."],
+  ["Nigeria Tech Boom Explained", "nigeria-tech-boom-explained", "How Lagos startups are pulling in global investors and talent."],
+  ["Ghana Election Watch", "ghana-election-watch", "Candidates, campaigns and the issues voters say matter most."],
+  ["Markets This Week", "markets-this-week", "Our business desk looks at the trading week ahead and what it means."],
+  ["Inside the Immigration Courts", "inside-the-immigration-courts", "A closer look at the cases shaping lives across the diaspora."],
+  ["The Climate Divide", "the-climate-divide", "How richer and poorer nations see the fight against climate change."],
+  ["Household Budgets", "household-budgets", "Real families share how they are coping with the cost of living."],
+  ["On the Air with Afrobeats", "on-the-air-with-afrobeats", "The artists and producers taking the sound around the world."],
+  ["Rural Health Clinics", "rural-health-clinics", "New clinics aim to bring care closer to remote communities."],
+  ["The Property Puzzle", "the-property-puzzle", "Why housing is getting harder to afford in major cities."],
+  ["Coffee to Cup", "coffee-to-cup", "Tracing East African coffee from farm to breakfast table."],
+  ["Tracking the Nomads", "tracking-the-nomads", "How traditional herding communities are adapting to a changing climate."],
+  ["Women in Politics", "women-in-politics", "The female leaders shaking up the electoral landscape."],
+  ["The Port Expansion", "the-port-expansion", "A new shipping terminal promises to transform regional trade."],
+  ["Tech for Schools", "tech-for-schools", "Digital classrooms arrive in classrooms that never had them."],
+  ["The Film Fest Diaries", "film-fest-diaries", "Behind the scenes at the continent's biggest film festival."],
+  ["Savings, Loans and Hope", "savings-loans-and-hope", "Community finance is helping small businesses get off the ground."],
+  ["The Olympic Dream", "the-olympic-dream", "Rising athletes measure the road to the big stage."],
+  ["Urban Gardens", "urban-gardens", "City farming is feeding families and greening neighbourhoods."],
+  ["The Tourism Comeback", "the-tourism-comeback", "Coastal towns welcome visitors back for a bumper season."],
+  ["Football Academies", "football-academies", "Grassroots training grounds hope to produce the next generation."],
+  ["Money Trail: Remittances", "money-trail-remittances", "The billion-dollar flows that keep diaspora families connected."],
+  ["New Music, Old Roots", "new-music-old-roots", "Modern producers are rediscovering traditional instruments."],
+  ["The Railway Renaissance", "the-railway-renaissance", "Faster, cleaner trains aim to reconnect towns and cities."],
+  ["Inside the Newsroom", "inside-the-newsroom", "How a story travels from breaking alert to the front page."],
+  ["Cooking with the Grandmothers", "cooking-with-the-grandmothers", "Recipes and memories passed down through generations."],
+  ["The Price of Power", "the-price-of-power", "Examining the cost of keeping the lights on at home and in business."],
+  ["Diaspora Returns", "diaspora-returns", "Why a growing number are moving back to invest and build."],
+  ["The Startup Garage", "startup-garage", "Young founders pitch ideas to fix everyday problems."],
+  ["World Cup Road Trip", "world-cup-road-trip", "Fans, flags and fixtures as qualifying reaches the final hurdle."],
+  ["A Vaccine Changed Lives Here", "vaccine-changed-lives-here", "Communities share their health stories one year on."],
+  ["The Fashion Recycle", "fashion-recycle", "Designers turn textile waste into high street style."],
+  ["Storm Season Prep", "storm-season-prep", "How coastal regions are bracing for stronger weather."],
+  ["Reading the Constitution", "reading-the-constitution", "A plain-language look at the laws shaping everyday rights."],
+  ["The Grandmother's Market", "grandmothers-market", "Vendors explain how tradition meets trade at the weekly market."],
+  ["Five Questions with a Mayor", "five-questions-with-a-mayor", "A city leader on housing, transport and the year ahead."],
+  ["The Water Engineers", "water-engineers", "Simple projects bringing clean water to dry districts."],
+  ["Weddings Across Borders", "weddings-across-borders", "Two families, two countries and one big celebration."],
+  ["The Retail Revival", "retail-revival", "Main street shops find new ways to win customers back."],
+  ["Inside the Peace Accord", "inside-the-peace-accord", "What the deal really changes on the ground."],
+  ["Young Farmers Network", "young-farmers-network", "A new generation chooses a career on the land."],
+  ["The Museum Reopening", "museum-reopening", "Repatriated artefacts return home after a century abroad."],
 ] as const;
 
 function slugify(value: string) {
@@ -114,7 +326,7 @@ function slugify(value: string) {
 }
 
 function sampleImageUrl(seed: string, width = 1200, height = 760) {
-  return `https://picsum.photos/seed/daily-chronicle-${seed}/${width}/${height}`;
+  return `https://picsum.photos/seed/world-current-${seed}/${width}/${height}`;
 }
 
 function daysAgo(days: number) {
@@ -133,11 +345,15 @@ function articleBody(title: string, category: string) {
     content: [
       {
         type: "paragraph",
-        text: `${title}. This demo story belongs to ${category} and is seeded for local previews.`,
+        text: `${title}. This ${category} story is seeded for local previews and written by the desk with readers in mind.`,
       },
       {
         type: "paragraph",
-        text: "Editors can replace this structured content with TipTap JSON from the newsroom workflow.",
+        text: "Reporters spoke to people directly affected, reviewed the available figures and placed the story in the context of the wider news agenda across Africa, Britain, America and beyond.",
+      },
+      {
+        type: "paragraph",
+        text: "The full picture will continue to develop, and the newsroom will update this piece as new details and reaction come in from those involved.",
       },
     ],
   };
@@ -155,8 +371,9 @@ async function clearDemoData(tx: Parameters<Parameters<typeof db.transaction>[0]
   await tx.delete(articleTags);
   await tx.delete(articleCategories);
   await tx.delete(articleRevisions);
-  await tx.delete(articles).where(sql`${articles.sourceName} = 'Daily Chronicle Demo'`);
+  await tx.delete(articles).where(sql`${articles.sourceName} IN ('THE WORLD CURRENT Demo', 'Daily Chronicle Demo')`);
   await tx.delete(navbarItems);
+  await tx.delete(categories).where(inArray(categories.slug, legacyCategorySlugs));
   await tx.delete(tags).where(sql`${tags.slug} LIKE 'demo-%'`);
   await tx.delete(media).where(sql`${media.bunnyPath} LIKE 'demo/%'`);
   await tx.delete(homepageSections);
@@ -427,49 +644,50 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
     const articleRows = [];
 
     for (const [categoryIndex, category] of seededCategories.entries()) {
-      for (let index = 0; index < 4; index += 1) {
-        const template = headlineTemplates[(categoryIndex + index) % headlineTemplates.length];
-        const isLegacyMostReadLink = category.slug === "news" && index === 0;
-        const isLegacyHomepageLink = category.slug === "news" && index === 1;
-        const title = isLegacyMostReadLink
-          ? "Inheritance row exposes bitter split between relatives"
-          : isLegacyHomepageLink
-            ? "Family reveals dramatic final hours before landmark public appearance"
-          : `${template} in ${category.name}`;
-        const slug = isLegacyMostReadLink
-          ? "inheritance-row-exposes-bitter-split-between-relatives"
-          : isLegacyHomepageLink
-            ? "family-reveals-dramatic-final-hours-before-landmark-public-appearance"
-          : `${category.slug}-${slugify(template)}-${index + 1}`;
+      const headlineBank = categoryHeadlines[category.slug] ?? categoryHeadlines.news;
+      const isLegacyMostReadLink = category.slug === "news";
+
+      for (let index = 0; index < articlesPerCategory; index += 1) {
+        const template = headlineBank[index % headlineBank.length];
+        const articleNumber = Math.floor(index / headlineBank.length) + 1;
+        const hasStoryVariant = articleNumber > 1;
+        const title = `${template}${hasStoryVariant ? ` — ${articleNumber}${index % 2 === 0 ? "a" : "b"}` : ""}`;
+        const slug = `${category.slug}-${slugify(template)}-${index + 1}`;
         const publishedAt = daysAgo(categoryIndex + index);
         const author = authors[(categoryIndex + index) % authors.length];
         const heroImage = mediaByPath.get(`demo/${category.slug}/image-${(index % 5) + 1}.jpg`);
-        const heroVideo = isLegacyMostReadLink
-          ? mediaByPath.get("demo/video/inheritance-dispute-video-explain.mp4")
+        const heroVideo = isLegacyMostReadLink && index === 0
+          ? mediaByPath.get("demo/video/world-current-briefing.mp4")
           : undefined;
 
         articleRows.push({
           title,
           slug,
-          subtitle: `${category.name} desk analysis and live reaction`,
-          excerpt: `A demo ${category.name.toLowerCase()} story with images, metadata, comments and analytics.`,
+          subtitle: `${category.name} desk reporting, context and reaction`,
+          excerpt: `The ${category.name.toLowerCase()} desk on ${template.toLowerCase().replace(/^breaking:?|^live updates:?|^in depth:?|^exclusive:?/i, "").trim()} — a fuller picture of the story behind today's headlines.`,
           content: articleBody(title, category.name),
-          renderedContent: `<p>${title}</p><p>This seeded article is ready for demo previews and category archives.</p>`,
+          renderedContent: `<p>${title}</p><p>This seeded ${category.name.toLowerCase()} article is ready for newsroom previews, category archives and social discovery, with desk-led context and relatable detail.</p>`,
           status: "PUBLISHED" as const,
-          type: index === 0 ? ("BREAKING" as const) : index === 1 ? ("ANALYSIS" as const) : ("STANDARD" as const),
+          type:
+            index === 0 ? ("BREAKING" as const)
+            : index === 1 ? ("ANALYSIS" as const)
+            : index % 7 === 3 ? ("OPINION" as const)
+            : index % 9 === 5 ? ("INTERVIEW" as const)
+            : index % 11 === 7 ? ("EXPLAINER" as const)
+            : ("STANDARD" as const),
           authorId: author.id,
           heroImageId: heroImage?.id,
           heroVideoId: heroVideo?.id,
           mobileHeroImageId: heroImage?.id,
           socialImageId: heroImage?.id,
           seoTitle: title.slice(0, 70),
-          seoDescription: `Demo ${category.name} article for Daily Chronicle.`,
-          sourceName: "Daily Chronicle Demo",
+          seoDescription: `${category.name} desk reporting and context from THE WORLD CURRENT.`,
+          sourceName: "THE WORLD CURRENT Demo",
           sourceUrl: `https://example.com/demo/${slug}`,
           isFeatured: index === 0,
           allowComments: true,
-          readingMinutes: 3 + index,
-          viewCount: 2500 - categoryIndex * 95 - index * 31,
+          readingMinutes: 3 + (index % 8),
+          viewCount: 2500 - categoryIndex * 95 - (index % 40) * 31,
           publishedAt,
           createdAt: publishedAt,
           updatedAt: new Date(),
@@ -500,7 +718,7 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
     const auditRows = [];
 
     for (const [index, article] of seededArticles.entries()) {
-      const category = seededCategories[Math.floor(index / 4)];
+      const category = seededCategories[Math.floor(index / articlesPerCategory)];
       const fallbackCategory = categoryBySlug.get("news");
 
       articleCategoryRows.push({
@@ -639,14 +857,17 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
       const category = seededCategories[categoryIndex];
       homepageConfig.push([
         category.slug,
-        seededArticles.slice(categoryIndex * 4, categoryIndex * 4 + 4),
+        seededArticles.slice(
+          categoryIndex * articlesPerCategory,
+          categoryIndex * articlesPerCategory + articlesPerCategory,
+        ),
       ]);
     }
 
     homepageConfig.unshift(
       ["hero", seededArticles.slice(0, 5)],
       ["latest", seededArticles.slice(5, 13)],
-      ["featured", seededArticles.filter((_, index) => index % 4 === 0).slice(0, 8)],
+      ["featured", seededArticles.filter((_, index) => index % articlesPerCategory === 0).slice(0, 8)],
     );
 
     homepageConfig.push(["opinion", seededArticles.slice(16, 20)]);
@@ -665,7 +886,7 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
           mediaId: article.heroImageId,
           position: position + 1,
           titleOverride: position === 0 ? article.title : undefined,
-          dekOverride: position === 0 ? "Demo curated homepage slot." : undefined,
+          dekOverride: position === 0 ? "Curated by the newsroom for readers across Africa, Britain, America and the wider world." : undefined,
         });
       }
     }

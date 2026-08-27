@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 600" role="img" aria-labelledby="title desc">
+  <title id="title">THE WORLD CURRENT</title>
+  <desc id="desc">THE WORLD CURRENT logo with globe mark and Different Nations. One World. One Voice tagline.</desc>
+  <g fill="#08264a">
+    <text x="335" y="98" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="68" font-weight="700">THE</text>
+    <text x="95" y="332" font-family="Georgia, 'Times New Roman', serif" font-size="294" font-weight="700">W</text>
+    <text x="745" y="332" font-family="Georgia, 'Times New Roman', serif" font-size="294" font-weight="700">RLD</text>
+  </g>
+  <g transform="translate(470 78)">
+    <circle cx="160" cy="160" r="144" fill="#ffffff" stroke="#08264a" stroke-width="12"/>
+    <circle cx="160" cy="160" r="118" fill="#08264a"/>
+    <g fill="#ffffff">
+      <path d="M87 62c25-16 59-21 92-14 12 3 27 7 35 17-19 2-29 13-45 18-22 7-42-4-67 4-14 5-22-5-15-25z"/>
+      <path d="M75 111c24-9 39 4 54 15 12 10 25 13 40 10 18-4 34 3 38 19 3 16-11 25-23 32-17 10-25 22-25 42 0 17-10 30-27 34-16 4-32-4-38-19-7-18 0-34 6-51 5-16-2-26-18-31-17-5-28-17-31-34-2-10 6-14 24-17z"/>
+      <path d="M225 84c30 12 49 37 55 66-24-1-37-14-45-35-4-11-13-18-10-31z"/>
+      <path d="M236 190c18 7 31 19 39 36-16 32-43 57-76 69 13-27 12-59 37-105z"/>
+      <path d="M52 171c18 7 28 21 24 43-3 17 6 32 16 47-31-20-51-52-56-89 4-3 9-4 16-1z"/>
+    </g>
+    <path d="M12 240c100 44 217 34 304-39" fill="none" stroke="#b40000" stroke-width="16" stroke-linecap="round"/>
+  </g>
+  <g fill="#b40000">
+    <text x="220" y="480" font-family="Georgia, 'Times New Roman', serif" font-size="164" font-weight="700" letter-spacing="24">CURRENT</text>
+  </g>
+  <g fill="none" stroke="#08264a" stroke-width="4">
+    <path d="M75 416h155"/>
+    <path d="M1270 416h155"/>
+  </g>
+  <g fill="none" stroke="#b40000" stroke-width="4">
+    <path d="M120 523h110"/>
+    <path d="M1270 523h110"/>
+  </g>
+  <text x="750" y="532" text-anchor="middle" fill="#08264a" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="16">DIFFERENT NATIONS. ONE WORLD. ONE VOICE.</text>
+  <text x="1366" y="515" fill="#08264a" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="800">TM</text>
+</svg>

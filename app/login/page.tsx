@@ -2,6 +2,7 @@ import { Home, Search } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import BrandLogo from "@/components/brand-logo";
 import LoginForm from "@/components/login-form";
 import UserMenu from "@/components/user-menu";
 import { getSession } from "@/src/session";
@@ -35,7 +36,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <main className="route-page auth-route-page">
       <header className="route-header">
         <Link href="/" className="route-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="route-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -59,7 +60,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         <div className="auth-card">
-          <span className="auth-card-kicker">Daily Chronicle account</span>
+          <span className="auth-card-kicker">THE WORLD CURRENT account</span>
           {params?.reason === "session-expired" ? (
             <p className="auth-notice">Your session expired. Sign in again to continue.</p>
           ) : null}

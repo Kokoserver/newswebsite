@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Chronicle",
-  description: "News, showbiz, lifestyle, money, health and travel coverage.",
+  title: "THE WORLD CURRENT",
+  description:
+    "A global newsroom connecting Africa, Britain, America, the diaspora and the wider world.",
 };
 
 export default function RootLayout({

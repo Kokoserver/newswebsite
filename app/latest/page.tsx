@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import AdvertisementSlot from "@/components/advertisement-slot";
+import BrandLogo from "@/components/brand-logo";
 import NewsletterForm from "@/components/newsletter-form";
 import Pagination from "@/components/pagination";
 import SocialFollowCard from "@/components/social-follow-card";
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 const pageSize = 24;
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/daily-chronicle-latest-${seed}/720/460`;
+  return `https://picsum.photos/seed/world-current-latest-${seed}/720/460`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -62,7 +63,7 @@ export default async function LatestPage({ searchParams }: LatestPageProps) {
     <main className="route-page">
       <header className="route-header">
         <Link href="/" className="route-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="route-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -77,8 +78,7 @@ export default async function LatestPage({ searchParams }: LatestPageProps) {
       <div className="route-kicker">Latest</div>
       <h1>Latest News</h1>
       <p>
-        The newest published headlines from the newsroom, loaded from the
-        article database in real time.
+        The newest published headlines from Africa, Britain, America and the wider world.
       </p>
       <div className="latest-layout">
         <div>
@@ -99,7 +99,7 @@ export default async function LatestPage({ searchParams }: LatestPageProps) {
                   <Link href={`/articles/${article.slug}`}>{article.title}</Link>
                 </h2>
                 <p>
-                  {article.excerpt ?? "The latest from the Daily Chronicle newsroom."}
+                  {article.excerpt ?? "The latest from THE WORLD CURRENT newsroom."}
                 </p>
                 <p className="route-meta">
                   <Clock3 size={13} /> {formatDate(article.publishedAt)} ·{" "}
@@ -130,7 +130,7 @@ export default async function LatestPage({ searchParams }: LatestPageProps) {
 
           <section className="channel-newsletter">
             <h2>Stay Informed</h2>
-            <p>Get the biggest stories and pictures delivered daily.</p>
+            <p>Get the biggest global stories delivered daily.</p>
             <NewsletterForm />
           </section>
         </aside>

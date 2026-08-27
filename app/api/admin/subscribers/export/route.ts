@@ -10,5 +10,5 @@ export async function GET() {
   const db = await getDb(); const rows = await db.query.newsletterSubscribers.findMany({ orderBy: [asc(newsletterSubscribers.createdAt)] });
   const body = [["email", "status", "created_at", "confirmed_at", "unsubscribed_at"].map(csv).join(","), ...rows.map((item) => [item.email, item.status, item.createdAt.toISOString(), item.confirmedAt?.toISOString() ?? "", item.unsubscribedAt?.toISOString() ?? ""].map(csv).join(","))].join("\r\n");
   await db.insert(auditLogs).values({ actorId: actor.id, action: "CREATE", entityType: "subscriber_export", summary: `Exported ${rows.length} subscribers`, metadata: { count: rows.length } });
-  return new Response(body, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="daily-chronicle-subscribers-${new Date().toISOString().slice(0, 10)}.csv"`, "Cache-Control": "no-store" } });
+  return new Response(body, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="world-current-subscribers-${new Date().toISOString().slice(0, 10)}.csv"`, "Cache-Control": "no-store" } });
 }

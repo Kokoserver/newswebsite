@@ -14,7 +14,7 @@ export function getDatabaseConfig() {
     process.env.TURSO_DATABASE_URL ??
     process.env.SQLITE_DATABASE_URL ??
     process.env.DATABASE_URL;
-  const defaultFileUrl = `file:${join(tmpdir(), "daily-chronicle-demo.db").replaceAll("\\", "/")}`;
+  const defaultFileUrl = `file:${join(tmpdir(), "world-current-demo.db").replaceAll("\\", "/")}`;
   const url = isSqliteCompatibleUrl(configuredUrl)
     ? configuredUrl!
     : defaultFileUrl;

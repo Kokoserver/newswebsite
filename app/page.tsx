@@ -16,12 +16,13 @@ import Link from "next/link";
 
 import { getAdvertisementsBySlot } from "@/src/db/queries/advertisements";
 import { getLatestArticles, getMostReadArticles } from "@/src/db/queries/articles";
-import { getNavbarCategories } from "@/src/db/queries/categories";
+import { getTrendingArticles } from "@/src/db/queries/analytics";
+import { getCategoryArchive, getNavbarCategories } from "@/src/db/queries/categories";
 import { getHomepageData } from "@/src/db/queries/homepage";
 import { getVideoMedia } from "@/src/db/queries/media";
-import { getTrendingArticles } from "@/src/db/queries/analytics";
 import { getSiteUrl } from "@/src/config";
 
+import BrandLogo from "@/components/brand-logo";
 import AdvertisementSlot from "@/components/advertisement-slot";
 import NewsletterForm from "@/components/newsletter-form";
 import ShareButton from "@/components/share-button";
@@ -58,7 +59,6 @@ type HomepageItem = {
   mediaTitle: string | null;
   mediaSlug: string | null;
 };
-
 type ArticleSummary = {
   id: string;
   title: string;
@@ -70,7 +70,6 @@ type ArticleSummary = {
   categoryName: string;
   categorySlug: string;
 };
-
 type ListedStory = {
   id: string;
   title: string;
@@ -89,7 +88,7 @@ type ListedStory = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/daily-chronicle-${seed}/1200/760`;
+  return `https://picsum.photos/seed/world-current-${seed}/1200/760`;
 }
 
 function shareUrl(path: string) {
@@ -366,7 +365,7 @@ function SectionRiver({
     <section className={`section-river ${title === "Top Stories" ? "top-stories-section" : ""}`}>
       <div className="section-river-heading">
         <h2>
-          <span>Exclusive</span> {title}
+          <span>{title === "Top Stories" ? "Lead" : "Desk"}</span> {title}
         </h2>
         <Link href={sectionHref}>
           More <ChevronRight size={14} />
@@ -399,10 +398,12 @@ function RailSection({
   title,
   href,
   stories,
+  limit = 10,
 }: {
   title: string;
   href: string;
   stories: ListedStory[];
+  limit?: number;
 }) {
   if (stories.length === 0) {
     return null;
@@ -416,63 +417,85 @@ function RailSection({
         </h2>
         <Link href={href}>More</Link>
       </div>
-      {stories.slice(0, 4).map((story) => (
+      {stories.slice(0, limit).map((story) => (
         <RailStory story={story} key={story.id} />
       ))}
     </section>
   );
 }
 
+function categoryRiverStories(
+  slug: string,
+  title: string,
+  latest: ListedStory[],
+  archive: { items: { id: string; title: string; slug: string; excerpt: string | null; heroImageUrl: string | null; heroImageAlt: string | null }[] } | null,
+) {
+  const archiveStories =
+    archive?.items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      href: `/articles/${item.slug}`,
+      category: title,
+      categorySlug: slug,
+      excerpt: item.excerpt,
+      imageUrl: item.heroImageUrl,
+      imageAlt: item.heroImageAlt ?? item.title,
+      publishedAt: null,
+      seed: item.slug,
+    })) ?? [];
+  const sameCategory = latest.filter((story) => story.categorySlug === slug);
+
+  return uniqueStories([...archiveStories, ...sameCategory]).slice(0, 6);
+}
+
 export default async function Home() {
-  const [
-    navItems,
-    homepageData,
-    latestArticles,
-    mostReadArticles,
-    trendingArticles,
-    videos,
-    homepageTopAds,
-    homepageMiddleAds,
-  ] = await Promise.all([
-      getNavbarCategories(),
-      getHomepageData(),
-      getLatestArticles(32),
-      getMostReadArticles(8),
-      getTrendingArticles(8),
-      getVideoMedia(6),
-      getAdvertisementsBySlot("HOMEPAGE_TOP", 6),
-      getAdvertisementsBySlot("HOMEPAGE_MIDDLE", 6),
-    ]);
+  const [homepageData, latestArticles, mostReadArticles, trendingArticles, videos, homepageTopAds, homepageMiddleAds, navItems] = await Promise.all([
+    getHomepageData(),
+    getLatestArticles(32),
+    getMostReadArticles(8),
+    getTrendingArticles(8),
+    getVideoMedia(6),
+    getAdvertisementsBySlot("HOMEPAGE_TOP", 6),
+    getAdvertisementsBySlot("HOMEPAGE_MIDDLE", 6),
+    getNavbarCategories(),
+  ]);
+
+  const latestStories = latestArticles.map(listedFromArticle);
+  const pulseItems = latestStories.slice(0, 5);
 
   const sectionByKey = new Map(homepageData.map((section) => [section.key, section]));
   const heroItems = sectionByKey.get("hero")?.items ?? [];
   const featuredItems = sectionByKey.get("featured")?.items ?? [];
-  // Keep the landing page focused; every remaining section stays available in navigation.
   const categorySections = homepageData
     .filter((section) => section.kind === "CATEGORY")
-    .slice(0, 4);
-  const latestStories = latestArticles.map(listedFromArticle);
-  const fallbackHeroItems = latestArticles.slice(0, 5).map((item) => homepageItemFromArticle(item));
+    .slice(0, 12);
+
+  const fallbackHeroItems = latestStories.slice(0, 5).map((item) =>
+    homepageItemFromArticle({
+      id: item.id,
+      title: item.title,
+      slug: item.href.replace("/articles/", ""),
+      excerpt: item.excerpt,
+      publishedAt: item.publishedAt,
+      heroImageUrl: item.imageUrl,
+      heroImageAlt: item.imageAlt,
+      categoryName: item.category,
+      categorySlug: item.categorySlug,
+    }),
+  );
   const displayHeroItems = heroItems.length > 0 ? heroItems : fallbackHeroItems;
   const heroLead = displayHeroItems[0] ?? null;
-  const curatedStories = homepageData.flatMap((section) =>
-    section.items.map((item, index) => listedFromHomepage(item, `${section.key}-${index}`)),
-  );
+
   const featuredStories = uniqueStories([
     ...featuredItems.map((item, index) => listedFromHomepage(item, `featured-${index}`)),
     ...latestStories.slice(0, 4),
   ]);
-  const visibleSectionStories = 5;
-  const sectionStories = (section: (typeof categorySections)[number]) => {
-    const curated = section.items.map((item, index) =>
-      listedFromHomepage(item, `${section.key}-${index}`),
-    );
-    const sameCategory = latestStories.filter((story) => story.categorySlug === section.key);
 
-    return uniqueStories([...curated, ...sameCategory, ...latestStories]).slice(0, visibleSectionStories);
-  };
-  const pulseItems = latestStories.slice(0, 5);
+  const curatedStories = homepageData.flatMap((section) =>
+    section.items.map((item, index) => listedFromHomepage(item, `${section.key}-${index}`)),
+  );
   const railStories = uniqueStories([...curatedStories, ...latestStories]).slice(0, 10);
+
   const billboardAd = homepageTopAds[0] ?? null;
   const railAds = [...homepageMiddleAds, ...homepageTopAds.slice(1)];
   const railAdAt = (index: number) => {
@@ -480,55 +503,28 @@ export default async function Home() {
       return null;
     }
 
-    return railAds[index % railAds.length];
+    return railAds[index % railAds.length] ?? null;
   };
-  const sidebarCategoryMap = new Map<
-    string,
-    { id: string; title: string; href: string; stories: ListedStory[] }
-  >();
 
-  function addSidebarStory(story: ListedStory) {
-    const id = story.categorySlug || story.category.toLowerCase().replaceAll(" ", "-");
-    const group = sidebarCategoryMap.get(id) ?? {
-      id,
-      title: story.category,
-      href: `/section/${id}`,
-      stories: [],
-    };
+  const railNavItems = navItems.length > 0 ? navItems : categorySections.map((s) => ({
+    id: s.key,
+    label: s.title,
+    href: `/section/${s.key}`,
+    slug: s.key,
+    position: 0,
+  }));
 
-    if (!group.stories.some((item) => item.href === story.href)) {
-      group.stories.push(story);
-    }
-
-    sidebarCategoryMap.set(id, group);
-  }
-
-  categorySections.forEach((section) => {
-    section.items
-      .map((item, index) => listedFromHomepage(item, `${section.key}-sidebar-${index}`))
-      .forEach(addSidebarStory);
-  });
-  latestStories.forEach(addSidebarStory);
-
-  const categoryRailSections = Array.from(sidebarCategoryMap.values()).slice(0, 4);
-  const railSectionGroups = [
-    {
-      id: "dont-miss",
-      title: "Don't Miss",
-      href: "/latest",
-      stories: railStories.slice(0, 6),
-    },
-    ...categoryRailSections,
-    {
-      id: "more-latest",
-      title: "More Latest",
-      href: "/latest",
-      stories: latestStories.slice(10, 18),
-    },
-  ];
+  const sidebarRails = await Promise.all(
+    railNavItems.map(async (item) => ({
+      id: item.slug,
+      title: item.label,
+      href: item.href,
+      stories: categoryRiverStories(item.slug, item.label, latestStories, await getCategoryArchive(item.slug, 10, 0)),
+    })),
+  );
 
   return (
-    <main className="news-site tabloid-home">
+    <main className="news-site world-current-home">
       <header className="news-header">
         <details className="desktop-menu">
           <summary aria-label="Open menu">
@@ -537,8 +533,7 @@ export default async function Home() {
           <div className="desktop-menu-panel">
             <strong>Sections</strong>
             <nav aria-label="Expanded sections menu">
-              <Link href="/latest">Latest News</Link>
-              <Link href="/watch">Watch</Link>
+              <Link href="/">Home</Link>
               {navItems.map((item) => (
                 <Link href={item.href} key={item.id}>
                   {item.label}
@@ -547,8 +542,8 @@ export default async function Home() {
             </nav>
           </div>
         </details>
-        <Link href="/" className="news-logo">
-          Daily Chronicle
+        <Link href="/" className="news-logo" aria-label="THE WORLD CURRENT home">
+          <BrandLogo priority />
         </Link>
         <div className="news-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -560,6 +555,7 @@ export default async function Home() {
 
       <StickySiteHeader>
         <nav className="news-nav" aria-label="Primary navigation">
+          <Link href="/">Home</Link>
           {navItems.map((item) => (
             <Link href={item.href} key={item.id}>
               {item.label}
@@ -567,6 +563,11 @@ export default async function Home() {
           ))}
         </nav>
       </StickySiteHeader>
+
+      <section className="world-current-brief" aria-label="THE WORLD CURRENT positioning">
+        <strong>Different Nations. One World. One Voice.</strong>
+        <span>An ACHEBE HOPE FOUNDATION Initiative</span>
+      </section>
 
       <AdvertisementSlot ad={billboardAd} variant="billboard" />
 
@@ -588,7 +589,7 @@ export default async function Home() {
       <div className="home-river-layout">
         <div className="home-river">
           <div className="river-heading">
-            <h2>Today’s headlines</h2>
+            <h2>Global newsroom</h2>
             <Link href="/latest">
               Latest news <ChevronRight size={14} />
             </Link>
@@ -603,7 +604,7 @@ export default async function Home() {
             <SectionRiver
               title={section.title}
               sectionKey={section.key}
-              stories={sectionStories(section)}
+              stories={categoryRiverStories(section.key, section.title, latestStories, null)}
               key={section.id}
             />
           ))}
@@ -686,16 +687,14 @@ export default async function Home() {
               <span className="newsletter-icon">
                 <Mail size={20} />
               </span>
-              <h2>Get the Daily Brief</h2>
-              <p>Top headlines, features and must-read stories every morning.</p>
+              <h2>Get The Current Brief</h2>
+              <p>Global headlines connecting Africa, the diaspora and the wider world.</p>
               <NewsletterForm />
             </div>
-            {railSectionGroups.map((section, index) => (
+            {sidebarRails.map((section, index) => (
               <div className="rail-section-stack" key={section.id}>
+                <AdvertisementSlot ad={railAdAt(index + 2)} variant="rail" />
                 <RailSection title={section.title} href={section.href} stories={section.stories} />
-                {index < railSectionGroups.length - 1 ? (
-                  <AdvertisementSlot ad={railAdAt(index + 1)} variant="rail" />
-                ) : null}
               </div>
             ))}
           </div>
@@ -735,10 +734,16 @@ export default async function Home() {
       ) : null}
 
       <footer className="news-footer">
-        <h2>Daily Chronicle</h2>
-        <p>News, features, lifestyle, showbiz, money and must-read stories.</p>
+        <h2>
+          <BrandLogo variant="dark" />
+        </h2>
+        <p>
+          Africa. Britain. America. The World. Different Nations. One World. One Voice.
+          An ACHEBE HOPE FOUNDATION Initiative.
+        </p>
         <nav>
-          {navItems.slice(0, 9).map((item) => (
+          <Link href="/">Home</Link>
+          {navItems.map((item) => (
             <Link href={item.href} key={item.id}>
               {item.label}
             </Link>

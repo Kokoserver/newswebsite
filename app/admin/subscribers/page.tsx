@@ -66,7 +66,7 @@ export default async function SubscribersAdminPage({ searchParams }: { searchPar
             <span>{activeTotal.toLocaleString()} active recipients</span>
           </div>
           <div className="admin-form-grid two">
-            <label>Subject<input name="subject" required minLength={5} maxLength={160} placeholder="This week at the Daily Chronicle" /></label>
+            <label>Subject<input name="subject" required minLength={5} maxLength={160} placeholder="This week at THE WORLD CURRENT" /></label>
             <label>Preview text<input name="previewText" maxLength={240} placeholder="A short summary shown by email clients" /></label>
             <label className="span-two">Message<textarea name="content" required minLength={10} maxLength={10_000} rows={8} placeholder="Write the newsletter message in plain text. Paragraph spacing is preserved." /></label>
             <label className="span-two">Featured article URL<input name="articleUrl" type="url" maxLength={2_000} placeholder="https://example.com/articles/featured-story" /></label>

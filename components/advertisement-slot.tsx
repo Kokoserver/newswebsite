@@ -28,7 +28,7 @@ export default function AdvertisementSlot({
       sizes={variant === "rail" ? "(max-width: 1020px) 50vw, 300px" : "(max-width: 1120px) 100vw, 1120px"}
     />
   ) : (
-    <strong>Daily Chronicle</strong>
+    <strong>THE WORLD CURRENT</strong>
   );
 
   return (

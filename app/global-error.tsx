@@ -4,6 +4,8 @@ import { Home, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
+import BrandLogo from "@/components/brand-logo";
+
 import "./globals.css";
 
 export default function GlobalError({
@@ -22,8 +24,8 @@ export default function GlobalError({
       <body>
         <main className="status-page status-page-error">
           <header className="status-header">
-            <Link className="status-brand" href="/" aria-label="Daily Chronicle home"><span>Daily</span> Chronicle</Link>
-            <span className="status-edition">Digital edition · Service notice</span>
+            <Link className="status-brand" href="/" aria-label="THE WORLD CURRENT home"><BrandLogo /></Link>
+            <span className="status-edition">Global edition · Service notice</span>
           </header>
           <section className="status-stage">
             <div className="status-copy">

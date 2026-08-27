@@ -30,15 +30,15 @@ export default function UserMenu({ size = 18 }: UserMenuProps) {
     return <Link href="/login" aria-label="Sign in" title="Sign in"><UserRound size={size} /></Link>;
   }
 
-  const displayName = user.name ?? user.email;
-  const firstName = displayName.split(" ")[0];
+  const displayName =
+    user.name === "Daily Chronicle Admin" ? "THE WORLD CURRENT Admin" : (user.name ?? user.email);
   const canViewDashboard = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(user.role ?? "");
   const expiresAt = session?.expires ? new Date(session.expires).getTime() : Number.NaN;
 
   return <>
     {Number.isFinite(expiresAt) ? <SessionExpiryGuard expiresAt={expiresAt} /> : null}
     <details className="user-menu">
-      <summary aria-label={`Signed in as ${displayName}`}><UserRound size={size} /><span className="user-menu-name">{firstName}</span></summary>
+      <summary aria-label={`Signed in as ${displayName}`}><UserRound size={size} /></summary>
       <div className="user-menu-dropdown">
         <span>{displayName}</span>
         {canViewDashboard ? <Link href="/admin">Dashboard</Link> : null}

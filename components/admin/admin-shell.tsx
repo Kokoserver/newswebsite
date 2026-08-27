@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import SessionExpiryGuard from "@/components/session-expiry-guard";
 import type { AdminPermission, AdminUser } from "@/src/admin/permissions";
@@ -40,23 +40,45 @@ export default function AdminShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [compact, setCompact] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const visibleItems = items.filter((item) => permissions.includes(item.permission));
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setPending(null), 0);
+    return () => window.clearTimeout(id);
+  }, [pathname]);
+
+  const handleNav = (href: string) => {
+    setOpen(false);
+    if (href === pathname || (href !== "/admin" && pathname.startsWith(href))) {
+      return;
+    }
+    setPending(href);
+  };
 
   return (
     <div className={`admin-app${compact ? " is-compact" : ""}`}>
       <SessionExpiryGuard expiresAt={sessionExpiresAt} />
+      <div className={pending ? "admin-progress is-visible" : "admin-progress"} aria-hidden="true" />
       <aside className={`admin-sidebar${open ? " is-open" : ""}`}>
         <div className="admin-sidebar-brand">
           <span className="admin-brand-mark"><BookOpenText size={19} /></span>
-          <span className="admin-brand-copy"><strong>Daily Chronicle</strong><small>Newsroom control</small></span>
+          <span className="admin-brand-copy"><strong>THE WORLD CURRENT</strong><small>Newsroom control</small></span>
           <button className="admin-mobile-close" onClick={() => setOpen(false)} aria-label="Close menu"><X size={20} /></button>
         </div>
         <nav className="admin-nav" aria-label="Administration">
           {visibleItems.map((item) => {
             const active = item.href === "/admin" ? pathname === item.href : pathname.startsWith(item.href);
             return (
-              <Link href={item.href} key={item.href} className={active ? "is-active" : ""} onClick={() => setOpen(false)} title={item.label}>
-                <item.icon size={18} /><span>{item.label}</span>
+              <Link
+                href={item.href}
+                key={item.href}
+                className={`${active ? "is-active" : ""}${pending === item.href ? " is-pending" : ""}`}
+                onClick={() => handleNav(item.href)}
+                title={item.label}
+              >
+                <span className="admin-nav-icon">{pending === item.href ? <span className="admin-nav-spinner" aria-hidden="true" /> : <item.icon size={18} />}</span>
+                <span>{item.label}</span>
               </Link>
             );
           })}

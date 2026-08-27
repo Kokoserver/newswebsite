@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import BrandLogo from "@/components/brand-logo";
 import UserMenu from "@/components/user-menu";
 import VideoPlayer from "@/components/video-player";
 import { getVideoBySlug, getVideoMedia } from "@/src/db/queries/media";
@@ -16,7 +17,7 @@ type WatchDetailPageProps = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/daily-chronicle-video-${seed}/1280/720`;
+  return `https://picsum.photos/seed/world-current-video-${seed}/1280/720`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -49,7 +50,7 @@ export default async function WatchDetailPage({ params }: WatchDetailPageProps) 
     <main className="watch-detail">
       <header className="route-header watch-detail-header">
         <Link href="/" className="route-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="route-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -73,7 +74,7 @@ export default async function WatchDetailPage({ params }: WatchDetailPageProps) 
       <div className="watch-detail-body">
         <div className="route-kicker">Video</div>
         <h1>{video.title}</h1>
-        <p>{video.caption ?? "A video package from the Daily Chronicle."}</p>
+        <p>{video.caption ?? "A video package from THE WORLD CURRENT."}</p>
         <p className="watch-detail-meta">
           {video.mimeType} · {formatDate(video.createdAt)}
         </p>

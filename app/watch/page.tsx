@@ -3,13 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import BrandLogo from "@/components/brand-logo";
 import UserMenu from "@/components/user-menu";
 import { getVideoMedia } from "@/src/db/queries/media";
 
 export const dynamic = "force-dynamic";
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/daily-chronicle-video-${seed}/1280/720`;
+  return `https://picsum.photos/seed/world-current-video-${seed}/1280/720`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -31,7 +32,7 @@ export default async function WatchPage() {
     <main className="route-page">
       <header className="route-header">
         <Link href="/" className="route-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="route-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -46,8 +47,7 @@ export default async function WatchPage() {
       <div className="route-kicker">Video</div>
       <h1>Watch</h1>
       <p>
-        Video packages from the Daily Chronicle library, loaded from the media
-        database.
+        Video briefings, interviews and packages from THE WORLD CURRENT newsroom.
       </p>
       <div className="watch-page-grid">
         {videos.map((video) => (
@@ -68,7 +68,7 @@ export default async function WatchPage() {
                 <Play size={20} fill="currentColor" />
               </span>
               <h2>{video.title}</h2>
-              <p>{video.caption ?? "A video package from the Daily Chronicle."}</p>
+              <p>{video.caption ?? "A video package from THE WORLD CURRENT."}</p>
               <span>{formatDate(video.createdAt)}</span>
             </Link>
           </article>

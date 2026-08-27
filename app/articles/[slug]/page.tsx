@@ -28,6 +28,7 @@ import { getArticleViewCount } from "@/src/db/queries/analytics";
 import { getNavbarCategories } from "@/src/db/queries/categories";
 import { getSession } from "@/src/session";
 
+import BrandLogo from "@/components/brand-logo";
 import { commentAutoApproveEnabled, getSiteUrl } from "@/src/config";
 
 export const dynamic = "force-dynamic";
@@ -55,12 +56,44 @@ function formatDate(date: Date | null) {
 }
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/daily-chronicle-article-${seed}/960/620`;
+  return `https://picsum.photos/seed/world-current-article-${seed}/960/620`;
 }
 
 function shareUrl(path: string) {
   const baseUrl = getSiteUrl();
   return new URL(path, baseUrl).toString();
+}
+
+function articleTemplateForCategory(slug?: string | null) {
+  if (slug === "business" || slug === "politics") {
+    return {
+      className: "article-template-analysis",
+      eyebrow: "Analysis Desk",
+      context: "Power, policy, markets and decisions that move public life.",
+    };
+  }
+
+  if (slug === "entertainment" || slug === "sport" || slug === "lifestyle") {
+    return {
+      className: "article-template-media",
+      eyebrow: "Culture Desk",
+      context: "People, performance, style and stories built for visual discovery.",
+    };
+  }
+
+  if (slug === "uk" || slug === "usa" || slug === "nigeria" || slug === "ghana" || slug === "africa" || slug === "world") {
+    return {
+      className: "article-template-regional",
+      eyebrow: "Global Desk",
+      context: "Reporting across Africa, Britain, America, the diaspora and the wider world.",
+    };
+  }
+
+  return {
+    className: "article-template-breaking",
+    eyebrow: "News Desk",
+    context: "Fast-moving reporting, verified updates and the context readers need now.",
+  };
 }
 
 function ArticleImage({
@@ -138,6 +171,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
   const primaryCategory =
     article.categories.find((category) => category.isPrimary) ?? article.categories[0];
+  const articleTemplate = articleTemplateForCategory(primaryCategory?.slug);
   const articleUrl = shareUrl(`/articles/${article.slug}`);
   const commentsCallbackUrl = `/articles/${article.slug}#comments`;
   const loginCallbackUrl = `/login?callbackUrl=${encodeURIComponent(commentsCallbackUrl)}`;
@@ -161,12 +195,12 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   const commenterName = session?.user?.name ?? session?.user?.email ?? "your account";
 
   return (
-    <main className="article-site">
+    <main className={`article-site ${articleTemplate.className}`}>
       <RecordView articleId={article.id} />
       <StickySiteHeader className="article-sticky-header">
         <header className="article-masthead">
           <Link href="/" className="article-brand">
-            Daily Chronicle
+            <BrandLogo />
           </Link>
           <nav aria-label="Article navigation">
             <Link href="/">Home</Link>
@@ -197,12 +231,16 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
               "News"
             )}
           </div>
+          <div className="article-template-kicker">
+            <span>{articleTemplate.eyebrow}</span>
+            <strong>{articleTemplate.context}</strong>
+          </div>
           <h1>{article.title}</h1>
 
           <p className="article-standfirst">
             {article.excerpt ??
               article.subtitle ??
-              "Latest details, pictures and analysis from the Daily Chronicle newsroom."}
+              "Latest reporting, context and analysis from THE WORLD CURRENT newsroom."}
           </p>
 
           <ul className="article-bullets">
@@ -212,7 +250,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           </ul>
 
           <div className="article-meta">
-            <span>By {article.author?.name ?? "Daily Chronicle Reporter"}</span>
+            <span>By {article.author?.name ?? "THE WORLD CURRENT Reporter"}</span>
             <span>
               <Clock3 size={13} /> Published: {formatDate(article.publishedAt)}
             </span>
@@ -237,7 +275,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
               seed={article.slug}
               caption={
                 article.heroImage?.altText ??
-                `${article.title} is part of the seeded demo news library.`
+                `${article.title} is part of THE WORLD CURRENT news library.`
               }
             />
           )}
@@ -254,8 +292,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           <aside className="article-pullout">
             <h2>More in {primaryCategory?.name ?? "News"}</h2>
             <p>
-              Browse related stories from the same category, all loaded from the
-              database.
+              Browse related reporting, analysis and updates from the same desk.
             </p>
             <Link href={`/section/${primaryCategory?.slug ?? "news"}`}>
               View section <ChevronRight size={14} />
@@ -264,7 +301,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
           <ArticleImage
             seed={`${article.slug}-secondary`}
-            caption="Sample supporting image for the demo article page."
+            caption="Supporting image for this article package."
           />
 
           <div className="article-tags">

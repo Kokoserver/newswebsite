@@ -1,5 +1,7 @@
-import { asc, desc, isNull } from "drizzle-orm";
+"use client";
+
 import { ChevronDown, Layers3 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import ArticlePickerField from "@/components/admin/article-picker-field";
 import InfoTooltip from "@/components/admin/info-tooltip";
@@ -10,10 +12,24 @@ import {
   saveHomepageItem,
   saveHomepageSection,
 } from "@/src/admin/operations-actions";
-import { requireAdminUser } from "@/src/admin/permissions";
-import { formatDateTimeLocal } from "@/src/admin/shared";
-import { getDb } from "@/src/db";
-import { homepageItems, homepageSectionKindValues, homepageSections, media } from "@/src/db/schema";
+
+const homepageSectionKinds = [
+  "HERO",
+  "LATEST",
+  "FEATURED",
+  "CATEGORY",
+  "OPINION",
+  "VIDEO",
+  "ADVERTISEMENT",
+] as const;
+
+type SectionDto = {
+  id: string;
+  key: string;
+  title: string;
+  kind: string;
+  position: number;
+};
 
 type MediaOption = {
   id: string;
@@ -21,23 +37,36 @@ type MediaOption = {
   publicUrl: string;
 };
 
-type PlacementValues = {
+type ItemDto = {
+  id: string;
+  sectionId: string;
   articleId: string | null;
-  article: { title: string; status: string } | null;
   mediaId: string | null;
-  position: number;
   titleOverride: string | null;
   dekOverride: string | null;
-  startsAt: Date | null;
-  endsAt: Date | null;
+  position: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  article: { title: string; status: string } | null;
 };
+
+function toDate(value: string | null): Date | null {
+  return value ? new Date(value) : null;
+}
+
+function formatDateTimeLocal(value: Date | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+}
 
 function PlacementFields({
   item,
   mediaOptions,
   defaultPosition,
 }: {
-  item?: PlacementValues;
+  item?: ItemDto | null;
   mediaOptions: MediaOption[];
   defaultPosition: number;
 }) {
@@ -72,32 +101,111 @@ function PlacementFields({
       </label>
       <label>
         Starts
-        <input name="startsAt" type="datetime-local" defaultValue={formatDateTimeLocal(item?.startsAt)} />
+        <input name="startsAt" type="datetime-local" defaultValue={formatDateTimeLocal(toDate(item?.startsAt ?? null))} />
       </label>
       <label>
         Ends
-        <input name="endsAt" type="datetime-local" defaultValue={formatDateTimeLocal(item?.endsAt)} />
+        <input name="endsAt" type="datetime-local" defaultValue={formatDateTimeLocal(toDate(item?.endsAt ?? null))} />
       </label>
     </>
   );
 }
 
-export default async function HomepageAdminPage() {
-  await requireAdminUser("homepage:manage");
-  const db = await getDb();
-  const [sections, items, mediaRows] = await Promise.all([
-    db.query.homepageSections.findMany({ orderBy: [asc(homepageSections.position)] }),
-    db.query.homepageItems.findMany({
-      with: { article: { columns: { title: true, status: true } } },
-      orderBy: [asc(homepageItems.position)],
-    }),
-    db.query.media.findMany({
-      columns: { id: true, title: true, publicUrl: true },
-      where: isNull(media.deletedAt),
-      orderBy: [desc(media.createdAt)],
-      limit: 200,
-    }),
-  ]);
+export default function HomepageAdminPage() {
+  const [sections, setSections] = useState<SectionDto[] | null>(null);
+  const [media, setMedia] = useState<MediaOption[]>([]);
+  const [itemsBySection, setItemsBySection] = useState<Record<string, ItemDto[]>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [readySections, setReadySections] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const loadedSections = useRef<Set<string>>(new Set());
+
+  const loadSectionItems = useCallback(async (sectionId: string) => {
+    if (loadedSections.current.has(sectionId)) return;
+    loadedSections.current.add(sectionId);
+    try {
+      const response = await fetch(`/api/admin/homepage?section=${encodeURIComponent(sectionId)}`);
+      const data = await response.json() as { items?: ItemDto[] };
+      if (response.ok) {
+        setItemsBySection((prev) => ({ ...prev, [sectionId]: data.items ?? [] }));
+      }
+    } catch {
+      loadedSections.current.delete(sectionId);
+    } finally {
+      setReadySections((prev) => {
+        const next = new Set(prev);
+        next.add(sectionId);
+        return next;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const response = await fetch("/api/admin/homepage", { signal: controller.signal });
+        const data = await response.json() as {
+          sections?: SectionDto[];
+          media?: MediaOption[];
+          message?: string;
+        };
+        if (!response.ok) throw new Error(data.message ?? "Unable to load homepage.");
+        const loaded = data.sections ?? [];
+        setSections(loaded);
+        setMedia(data.media ?? []);
+        if (loaded.length > 0) {
+          setOpenId(loaded[0].id);
+          await loadSectionItems(loaded[0].id);
+        }
+      } catch (requestError) {
+        if (!controller.signal.aborted) {
+          setError(requestError instanceof Error ? requestError.message : "Unable to load homepage.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [loadSectionItems]);
+
+  function handleSummaryClick(event: React.MouseEvent<HTMLElement>, sectionId: string) {
+    event.preventDefault();
+    const willOpen = openId !== sectionId;
+    setOpenId(willOpen ? sectionId : null);
+    if (willOpen) {
+      void loadSectionItems(sectionId);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="admin-page-header">
+        <div>
+          <span className="admin-eyebrow">Front page</span>
+          <h1>Homepage curation</h1>
+        </div>
+        <div className="admin-loading" role="status" aria-live="polite">
+          <span className="admin-spinner" aria-hidden="true" />
+          <p>Loading homepage…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !sections) {
+    return (
+      <div className="admin-page-header">
+        <div>
+          <span className="admin-eyebrow">Front page</span>
+          <h1>Homepage curation</h1>
+          <p className="admin-empty">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -125,12 +233,12 @@ export default async function HomepageAdminPage() {
           <label>
             Kind
             <select name="kind">
-              {homepageSectionKindValues.map((value) => <option key={value}>{value}</option>)}
+              {homepageSectionKinds.map((value) => <option key={value}>{value}</option>)}
             </select>
           </label>
           <label>
             Position
-            <input name="position" type="number" min="1" defaultValue={sections.length + 1} />
+            <input name="position" type="number" min="1" defaultValue={(sections?.length ?? 0) + 1} />
           </label>
           <SubmitButton>Create section</SubmitButton>
         </form>
@@ -141,77 +249,89 @@ export default async function HomepageAdminPage() {
           <span className="admin-eyebrow">Section order</span>
           <h2>Homepage structure <InfoTooltip text="Open one section at a time to edit its settings and placements. Each placement can use an article's media or a separate asset and can have an optional publishing window." /></h2>
         </div>
-        <span><Layers3 size={16} />{sections.length} sections</span>
+        <span><Layers3 size={16} />{sections?.length ?? 0} sections</span>
       </div>
 
       <div className="admin-homepage-stack">
-        {sections.map((section, index) => {
-          const sectionItems = items.filter((item) => item.sectionId === section.id);
+        {(sections ?? []).map((section) => {
+          const items = itemsBySection[section.id] ?? [];
+          const sectionLoading = !readySections.has(section.id);
 
           return (
             <details
               className="admin-card admin-homepage-section"
               key={section.id}
-              name="homepage-sections"
-              open={index === 0}
+              open={openId === section.id}
             >
-              <summary className="admin-homepage-section-summary">
+              <summary
+                className="admin-homepage-section-summary"
+                onClick={(event) => handleSummaryClick(event, section.id)}
+              >
                 <span className="admin-homepage-position">{section.position}</span>
                 <span className="admin-homepage-section-name">
                   <strong>{section.title}</strong>
                   <small>{section.key}</small>
                 </span>
                 <span className="admin-homepage-kind">{section.kind.replaceAll("_", " ")}</span>
-                <span className="admin-homepage-count">
-                  {sectionItems.length} {sectionItems.length === 1 ? "placement" : "placements"}
-                </span>
+                {sectionLoading && openId === section.id ? (
+                  <span className="admin-homepage-loading" aria-hidden="true">
+                    <span className="admin-spinner admin-spinner-sm" />
+                  </span>
+                ) : null}
                 <ChevronDown size={18} />
               </summary>
 
               <div className="admin-homepage-section-body">
                 <div className="admin-homepage-section-head">
-                <form action={saveHomepageSection.bind(null, section.id)} className="admin-form-grid four">
-                  <label>Title<input name="title" defaultValue={section.title} /></label>
-                  <label>Key<input name="key" defaultValue={section.key} /></label>
-                  <label>
-                    Kind
-                    <select name="kind" defaultValue={section.kind}>
-                      {homepageSectionKindValues.map((value) => <option key={value}>{value}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    Position
-                    <input name="position" type="number" min="1" defaultValue={section.position} />
-                  </label>
-                  <SubmitButton>Save section</SubmitButton>
-                </form>
-                <form action={deleteHomepageSection.bind(null, section.id)}>
-                  <SubmitButton danger>Delete section</SubmitButton>
-                </form>
+                  <form action={saveHomepageSection.bind(null, section.id)} className="admin-form-grid four">
+                    <label>Title<input name="title" defaultValue={section.title} /></label>
+                    <label>Key<input name="key" defaultValue={section.key} /></label>
+                    <label>
+                      Kind
+                      <select name="kind" defaultValue={section.kind}>
+                        {homepageSectionKinds.map((value) => <option key={value}>{value}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Position
+                      <input name="position" type="number" min="1" defaultValue={section.position} />
+                    </label>
+                    <SubmitButton>Save section</SubmitButton>
+                  </form>
+                  <form action={deleteHomepageSection.bind(null, section.id)}>
+                    <SubmitButton danger>Delete section</SubmitButton>
+                  </form>
                 </div>
 
-                <div className="admin-placement-list">
-                  {sectionItems.map((item) => (
-                    <article key={item.id}>
-                      <form action={saveHomepageItem.bind(null, item.id)} className="admin-form-grid placement">
-                        <input type="hidden" name="sectionId" value={section.id} />
-                        <PlacementFields item={item} mediaOptions={mediaRows} defaultPosition={item.position} />
-                        <SubmitButton>Save placement</SubmitButton>
-                      </form>
-                      <div className="admin-placement-title">{item.article?.title ?? "Media placement"}</div>
-                      <form action={deleteHomepageItem.bind(null, item.id)}>
-                        <SubmitButton danger>Remove</SubmitButton>
-                      </form>
-                    </article>
-                  ))}
-                </div>
+                {sectionLoading ? (
+                  <div className="admin-loading admin-section-loading" role="status" aria-live="polite">
+                    <span className="admin-spinner" aria-hidden="true" />
+                    <p>Loading placements…</p>
+                  </div>
+                ) : (
+                  <div className="admin-placement-list">
+                    {items.map((item) => (
+                      <article key={item.id}>
+                        <form action={saveHomepageItem.bind(null, item.id)} className="admin-form-grid placement">
+                          <input type="hidden" name="sectionId" value={section.id} />
+                          <PlacementFields item={item} mediaOptions={media} defaultPosition={item.position} />
+                          <SubmitButton>Save placement</SubmitButton>
+                        </form>
+                        <div className="admin-placement-title">{item.article?.title ?? "Media placement"}</div>
+                        <form action={deleteHomepageItem.bind(null, item.id)}>
+                          <SubmitButton danger>Remove</SubmitButton>
+                        </form>
+                      </article>
+                    ))}
+                  </div>
+                )}
 
                 <form
                   action={saveHomepageItem.bind(null, null)}
                   className="admin-form-grid placement admin-new-placement"
                 >
                   <input type="hidden" name="sectionId" value={section.id} />
-                  <PlacementFields mediaOptions={mediaRows} defaultPosition={sectionItems.length + 1} />
+                  <PlacementFields mediaOptions={media} defaultPosition={items.length + 1} />
                   <SubmitButton>Add placement</SubmitButton>
                 </form>
               </div>

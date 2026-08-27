@@ -23,16 +23,21 @@ export const getCurrentAdminUser = cache(async (): Promise<AdminUser | null> => 
   const session = await getSession();
   if (!session?.user?.id) return null;
 
-  const db = await getDb();
-  const user = await db.query.users.findFirst({
-    columns: { id: true, name: true, email: true, role: true, status: true },
-    where: eq(users.id, session.user.id),
-  });
-
-  if (!user || user.status !== "ACTIVE" || !hasPermission(user.role, "dashboard:view")) {
+  const user = await loadAdminUser(session.user.id);
+  if (!user || !hasPermission(user.role, "dashboard:view")) {
     return null;
   }
 
+  return user;
+});
+
+const loadAdminUser = cache(async (userId: string): Promise<AdminUser | null> => {
+  const db = await getDb();
+  const user = await db.query.users.findFirst({
+    columns: { id: true, name: true, email: true, role: true, status: true },
+    where: eq(users.id, userId),
+  });
+  if (!user || user.status !== "ACTIVE") return null;
   return { id: user.id, name: user.name, email: user.email, role: user.role };
 });
 
@@ -40,16 +45,11 @@ export async function requireAdminUser(permission: AdminPermission = "dashboard:
   const session = await getSession();
   if (!session?.user?.id) redirect("/login?callbackUrl=/admin");
 
-  const db = await getDb();
-  const user = await db.query.users.findFirst({
-    columns: { id: true, name: true, email: true, role: true, status: true },
-    where: eq(users.id, session.user.id),
-  });
-
-  if (!user || user.status !== "ACTIVE") redirect("/login");
+  const user = await loadAdminUser(session.user.id);
+  if (!user) redirect("/login");
   if (!hasPermission(user.role, permission)) redirect("/admin-denied");
 
-  return { id: user.id, name: user.name, email: user.email, role: user.role } satisfies AdminUser;
+  return user;
 }
 
 export async function requireArticleAccess(articleId: string) {

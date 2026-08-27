@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import AdvertisementSlot from "@/components/advertisement-slot";
+import BrandLogo from "@/components/brand-logo";
 import UserMenu from "@/components/user-menu";
 import NewsletterForm from "@/components/newsletter-form";
 import Pagination from "@/components/pagination";
@@ -30,7 +31,7 @@ type SectionPageProps = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/daily-chronicle-section-${seed}/720/460`;
+  return `https://picsum.photos/seed/world-current-section-${seed}/720/460`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -83,7 +84,7 @@ export default async function SectionArchivePage({
   const title = category.name;
   const intro =
     category.description ??
-    "Latest stories, analysis and features from this section.";
+    "Latest reporting, analysis and features from this newsroom desk.";
   const items = archive?.items ?? [];
   const [leadStory, secondStory, thirdStory, ...feedStories] = items;
   const railAds = [...sidebarAds, ...categoryAds];
@@ -93,7 +94,7 @@ export default async function SectionArchivePage({
     <main className="channel-page">
       <header className="channel-header">
         <Link href="/" className="channel-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="channel-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -104,6 +105,7 @@ export default async function SectionArchivePage({
       </header>
 
       <nav className="channel-nav" aria-label="Primary navigation">
+        <Link href="/">Home</Link>
         {navItems.map((item) => (
           <Link href={item.href} key={item.id}>
             {item.label}
@@ -141,7 +143,7 @@ export default async function SectionArchivePage({
                   <h2>
                     <Link href={`/articles/${leadStory.slug}`}>{leadStory.title}</Link>
                   </h2>
-                  <p>{leadStory.excerpt ?? "Latest coverage from this section."}</p>
+                  <p>{leadStory.excerpt ?? "Latest coverage from this desk."}</p>
                   <p className="channel-feed-date">{formatDate(leadStory.publishedAt)}</p>
                 </article>
               ) : (
@@ -190,7 +192,7 @@ export default async function SectionArchivePage({
                         <h2>
                           <Link href={`/articles/${story.slug}`}>{story.title}</Link>
                         </h2>
-                        <p>{story.excerpt ?? "Latest coverage from this section."}</p>
+                        <p>{story.excerpt ?? "Latest coverage from this desk."}</p>
                       </div>
                     </article>
                   ))}
@@ -216,7 +218,7 @@ export default async function SectionArchivePage({
                     <h2>
                       <Link href={`/articles/${story.slug}`}>{story.title}</Link>
                     </h2>
-                    <p>{story.excerpt ?? "Latest coverage from this section."}</p>
+                    <p>{story.excerpt ?? "Latest coverage from this desk."}</p>
                     <p className="channel-feed-date">{formatDate(story.publishedAt)}</p>
                   </div>
                 </article>
@@ -250,7 +252,7 @@ export default async function SectionArchivePage({
 
           <section className="channel-newsletter">
             <h2>Stay Informed</h2>
-            <p>Get the biggest stories and pictures delivered daily.</p>
+            <p>Get global headlines and desk briefings delivered daily.</p>
             <NewsletterForm />
           </section>
         </aside>
