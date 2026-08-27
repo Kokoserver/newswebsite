@@ -1,9 +1,66 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 
-import { advertisementAssignments, advertisements, media } from "@/src/db/schema";
+import {
+  advertisementAssignments,
+  advertisementMedia,
+  advertisements,
+  media,
+} from "@/src/db/schema";
 
 type AdvertisementSlot = typeof advertisementAssignments.$inferSelect.slot;
+
+export type AdvertisementMediaItem = {
+  id: string;
+  kind: string;
+  publicUrl: string;
+  posterUrl: string | null;
+  alt: string | null;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  position: number;
+};
+
+async function getAdvertisementMediaItems(
+  advertisementIds: string[],
+): Promise<Map<string, AdvertisementMediaItem[]>> {
+  if (advertisementIds.length === 0) return new Map();
+
+  const { getDb } = await import("@/src/db");
+  const db = await getDb();
+
+  const rows = await db
+    .select({
+      advertisementId: advertisementMedia.advertisementId,
+      id: media.id,
+      kind: media.kind,
+      publicUrl: media.publicUrl,
+      posterUrl: media.posterUrl,
+      alt: media.altText,
+      mimeType: media.mimeType,
+      width: media.width,
+      height: media.height,
+      position: advertisementMedia.position,
+    })
+    .from(advertisementMedia)
+    .innerJoin(media, eq(advertisementMedia.mediaId, media.id))
+    .where(
+      and(
+        inArray(advertisementMedia.advertisementId, advertisementIds),
+        isNull(media.deletedAt),
+      ),
+    )
+    .orderBy(asc(advertisementMedia.position));
+
+  const grouped = new Map<string, AdvertisementMediaItem[]>();
+  for (const row of rows) {
+    const items = grouped.get(row.advertisementId) ?? [];
+    items.push(row);
+    grouped.set(row.advertisementId, items);
+  }
+  return grouped;
+}
 
 const getAdvertisementsBySlotCached = unstable_cache(
   async (slot: AdvertisementSlot, limit: number) => {
@@ -11,13 +68,14 @@ const getAdvertisementsBySlotCached = unstable_cache(
     const db = await getDb();
     const now = new Date();
 
-    return db
+    const ads = await db
       .select({
         id: advertisements.id,
         name: advertisements.name,
         targetUrl: advertisements.targetUrl,
         slot: advertisementAssignments.slot,
         position: advertisementAssignments.position,
+        mediaId: advertisements.mediaId,
         mediaUrl: media.publicUrl,
         mediaAlt: media.altText,
         mediaWidth: media.width,
@@ -39,6 +97,15 @@ const getAdvertisementsBySlotCached = unstable_cache(
       )
       .orderBy(asc(advertisementAssignments.position), asc(advertisements.createdAt))
       .limit(limit);
+
+    const mediaItems = await getAdvertisementMediaItems(
+      ads.map((ad) => ad.id),
+    );
+
+    return ads.map((ad) => ({
+      ...ad,
+      mediaItems: mediaItems.get(ad.id) ?? [],
+    }));
   },
   ["advertisements-by-slot"],
   { revalidate: 60, tags: ["advertisements", "media"] },
@@ -60,7 +127,7 @@ export async function getAdminAdvertisements(limit = 10, offset = 0) {
 
   if (page.length === 0) return [];
 
-  return db
+  const ads = await db
     .select({
       id: advertisements.id,
       name: advertisements.name,
@@ -84,6 +151,15 @@ export async function getAdminAdvertisements(limit = 10, offset = 0) {
     .leftJoin(media, eq(advertisements.mediaId, media.id))
     .where(inArray(advertisements.id, page.map((item) => item.id)))
     .orderBy(desc(advertisements.createdAt), asc(advertisementAssignments.position));
+
+  const mediaItems = await getAdvertisementMediaItems(
+    ads.map((ad) => ad.id),
+  );
+
+  return ads.map((ad) => ({
+    ...ad,
+    mediaItems: mediaItems.get(ad.id) ?? [],
+  }));
 }
 
 export async function getAdminAdvertisementCount() {

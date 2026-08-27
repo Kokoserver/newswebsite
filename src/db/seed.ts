@@ -11,6 +11,7 @@ import {
   accounts,
   advertisements,
   advertisementAssignments,
+  advertisementMedia,
   articleCategories,
   articleRevisions,
   articles,
@@ -365,6 +366,7 @@ async function clearDemoData(tx: Parameters<Parameters<typeof db.transaction>[0]
   await tx.delete(articleViewDailyStats);
   await tx.delete(articleViews);
   await tx.delete(comments);
+  await tx.delete(advertisementMedia);
   await tx.delete(advertisementAssignments);
   await tx.delete(advertisements);
   await tx.delete(homepageItems);
@@ -912,6 +914,8 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
     const middleAdMedia = mediaByPath.get("demo/ads/homepage-middle.jpg");
     const travelAdMedia = mediaByPath.get("demo/ads/sidebar-travel.jpg");
     const financeAdMedia = mediaByPath.get("demo/ads/sidebar-finance.jpg");
+    const briefingAdVideo = mediaByPath.get("demo/video/world-current-briefing.mp4");
+    const marketsAdVideo = mediaByPath.get("demo/video/markets-this-week.mp4");
     const seededAds = await tx
       .insert(advertisements)
       .values([
@@ -1011,6 +1015,20 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
         endsAt: daysAgo(-30),
       },
     ]);
+
+    const adMediaItems: Array<{ advertisementId: string; mediaId: string; position: number }> = [];
+    const pushAdMedia = (adIndex: number, ids: Array<string | undefined>) => {
+      ids.forEach((id, index) => {
+        if (id) adMediaItems.push({ advertisementId: seededAds[adIndex].id, mediaId: id, position: index + 1 });
+      });
+    };
+    pushAdMedia(0, [billboardAdMedia?.id, travelAdMedia?.id]);
+    pushAdMedia(1, [briefingAdVideo?.id]);
+    pushAdMedia(2, [travelAdMedia?.id]);
+    pushAdMedia(3, [financeAdMedia?.id, middleAdMedia?.id]);
+    pushAdMedia(4, [financeAdMedia?.id]);
+    pushAdMedia(5, [marketsAdVideo?.id, billboardAdMedia?.id]);
+    if (adMediaItems.length > 0) await tx.insert(advertisementMedia).values(adMediaItems);
 
     await tx
       .insert(newsletterSubscribers)

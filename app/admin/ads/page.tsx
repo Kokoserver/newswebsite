@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import AdMediaPicker from "@/components/admin/ad-media-picker";
 import InfoTooltip from "@/components/admin/info-tooltip";
-import MediaPickerField from "@/components/admin/media-picker-field";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { deleteAdvertisement, saveAdvertisement } from "@/src/admin/operations-actions";
 import { requireAdminUser } from "@/src/admin/permissions";
@@ -31,7 +31,7 @@ function AdFields({ ad }: { ad?: Ad }) {
         </select>
       </label>
       <label>Target URL<input name="targetUrl" type="url" required defaultValue={ad?.targetUrl ?? ""} /></label>
-      <MediaPickerField name="mediaId" label="Creative" kind="IMAGE" initialId={ad?.mediaId} />
+      <AdMediaPicker initialItems={ad?.mediaItems ?? []} />
       <label>
         Placement
         <select name="slot" defaultValue={ad?.slot ?? "HOMEPAGE_TOP"}>
@@ -103,7 +103,13 @@ export default async function AdsAdminPage({
         {ads.map((ad) => (
           <article className="admin-card admin-ad-row" key={`${ad.id}-${ad.assignmentId}`}>
             <div className="admin-ad-creative">
-              {ad.mediaUrl ? (
+              {ad.mediaItems?.[0] ? (
+                ad.mediaItems[0].kind === "VIDEO" ? (
+                  <video src={ad.mediaItems[0].publicUrl} poster={ad.mediaItems[0].posterUrl ?? undefined} preload="metadata" muted />
+                ) : (
+                  <Image src={ad.mediaItems[0].publicUrl} alt={ad.mediaItems[0].alt ?? ad.name} width={300} height={180} />
+                )
+              ) : ad.mediaUrl ? (
                 <Image src={ad.mediaUrl} alt={ad.mediaAlt ?? ad.name} width={300} height={180} />
               ) : <span>No creative</span>}
             </div>

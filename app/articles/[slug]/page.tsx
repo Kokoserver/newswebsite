@@ -200,7 +200,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
       <StickySiteHeader className="article-sticky-header">
         <header className="article-masthead">
           <Link href="/" className="article-brand">
-            <BrandLogo />
+            <BrandLogo className="article-logo-normal" />
+            <BrandLogo variant="dark" className="article-logo-scrolled" />
           </Link>
           <nav aria-label="Article navigation">
             <Link href="/">Home</Link>

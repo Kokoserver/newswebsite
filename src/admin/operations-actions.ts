@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import slugify from "slugify";
@@ -13,10 +13,10 @@ import { checked, dateOrNull, optionalText, positiveInteger, textValue } from "@
 import { getSiteUrl } from "@/src/config";
 import { getDb } from "@/src/db";
 import {
-  advertisementAssignments, advertisements, advertisementSlotValues, advertisementStatusValues,
-  auditLogs, categories, comments, commentStatusValues, homepageItems, homepageSections,
-  homepageSectionKindValues, navbarItems, newsletterSubscribers, newsletterSubscriberStatusValues,
-  passwordResetTokens, tags, userRoleValues, users, userStatusValues,
+  advertisementAssignments, advertisementMedia, advertisements, advertisementSlotValues,
+  advertisementStatusValues, auditLogs, categories, comments, commentStatusValues, homepageItems,
+  homepageSections, homepageSectionKindValues, media, navbarItems, newsletterSubscribers,
+  newsletterSubscriberStatusValues, passwordResetTokens, tags, userRoleValues, users, userStatusValues,
 } from "@/src/db/schema";
 
 function invalidateAdmin(path: string, publicPaths: string[] = [], tagsToUpdate: string[] = []) {
@@ -98,11 +98,22 @@ export async function moderateComment(commentId: string, formData: FormData) {
   if (articleId) revalidatePath(`/admin/articles/${articleId}/details`);
 }
 
-const adSchema = z.object({ name: z.string().trim().min(2).max(200), status: z.enum(advertisementStatusValues), targetUrl: z.url(), mediaId: z.string().uuid().nullable(), slot: z.enum(advertisementSlotValues), position: z.number().int().positive(), startsAt: z.date(), endsAt: z.date() });
+const adSchema = z.object({ name: z.string().trim().min(2).max(200), status: z.enum(advertisementStatusValues), targetUrl: z.url(), slot: z.enum(advertisementSlotValues), position: z.number().int().positive(), startsAt: z.date(), endsAt: z.date() });
 export async function saveAdvertisement(adId: string | null, assignmentId: string | null, formData: FormData) {
   const actor = await requireAdminUser("ads:manage"); const startsAt = dateOrNull(formData, "startsAt"); const endsAt = dateOrNull(formData, "endsAt");
-  const input = adSchema.parse({ name: textValue(formData, "name"), status: textValue(formData, "status"), targetUrl: textValue(formData, "targetUrl"), mediaId: optionalText(formData, "mediaId"), slot: textValue(formData, "slot"), position: positiveInteger(formData, "position"), startsAt, endsAt }); if (input.endsAt <= input.startsAt) throw new Error("End time must be after start time.");
-  const db = await getDb(); await db.transaction(async (tx) => { let id = adId; const adValues = { name: input.name, status: input.status, targetUrl: input.targetUrl, mediaId: input.mediaId, startsAt: input.startsAt, endsAt: input.endsAt }; if (id) await tx.update(advertisements).set(adValues).where(eq(advertisements.id, id)); else { const [created] = await tx.insert(advertisements).values(adValues).returning({ id: advertisements.id }); id = created.id; } const assignment = { advertisementId: id!, slot: input.slot, position: input.position, startsAt: input.startsAt, endsAt: input.endsAt }; if (assignmentId) await tx.update(advertisementAssignments).set(assignment).where(and(eq(advertisementAssignments.id, assignmentId), eq(advertisementAssignments.advertisementId, id!))); else await tx.insert(advertisementAssignments).values(assignment); await tx.insert(auditLogs).values({ actorId: actor.id, action: adId ? "UPDATE" : "CREATE", entityType: "advertisement", entityId: id, summary: `${adId ? "Updated" : "Created"} advertisement ${input.name}`, metadata: { slot: input.slot } }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]);
+  const input = adSchema.parse({ name: textValue(formData, "name"), status: textValue(formData, "status"), targetUrl: textValue(formData, "targetUrl"), slot: textValue(formData, "slot"), position: positiveInteger(formData, "position"), startsAt, endsAt }); if (input.endsAt <= input.startsAt) throw new Error("End time must be after start time.");
+  const mediaIds = formData.getAll("mediaItem").map((value) => String(value));
+  if (mediaIds.some((value) => !value.trim())) throw new Error("Choose at least one image or video for the ad.");
+  for (const mediaId of mediaIds) z.string().uuid().parse(mediaId);
+  const db = await getDb();
+  const existingMedia = await db.query.media.findMany({
+    columns: { id: true },
+    where: and(inArray(media.id, mediaIds), isNull(media.deletedAt)),
+  });
+  const existingIds = new Set(existingMedia.map((row) => row.id));
+  const resolvedMediaIds = mediaIds.filter((id) => existingIds.has(id));
+  if (resolvedMediaIds.length === 0) throw new Error("Choose at least one image or video for the ad.");
+  await db.transaction(async (tx) => { let id = adId; const adValues = { name: input.name, status: input.status, targetUrl: input.targetUrl, mediaId: resolvedMediaIds[0] ?? null, startsAt: input.startsAt, endsAt: input.endsAt }; if (id) await tx.update(advertisements).set(adValues).where(eq(advertisements.id, id)); else { const [created] = await tx.insert(advertisements).values(adValues).returning({ id: advertisements.id }); id = created.id; } const assignment = { advertisementId: id!, slot: input.slot, position: input.position, startsAt: input.startsAt, endsAt: input.endsAt }; if (assignmentId) await tx.update(advertisementAssignments).set(assignment).where(and(eq(advertisementAssignments.id, assignmentId), eq(advertisementAssignments.advertisementId, id!))); else await tx.insert(advertisementAssignments).values(assignment); await tx.delete(advertisementMedia).where(eq(advertisementMedia.advertisementId, id!)); await tx.insert(advertisementMedia).values(resolvedMediaIds.map((mediaId, index) => ({ advertisementId: id!, mediaId, position: index + 1 }))); await tx.insert(auditLogs).values({ actorId: actor.id, action: adId ? "UPDATE" : "CREATE", entityType: "advertisement", entityId: id, summary: `${adId ? "Updated" : "Created"} advertisement ${input.name}`, metadata: { slot: input.slot, mediaCount: resolvedMediaIds.length } }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]);
 }
 export async function deleteAdvertisement(adId: string) { const actor = await requireAdminUser("ads:manage"); const db = await getDb(); await db.transaction(async (tx) => { const ad = await tx.query.advertisements.findFirst({ where: eq(advertisements.id, adId) }); await tx.delete(advertisements).where(eq(advertisements.id, adId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "advertisement", entityId: adId, summary: `Deleted advertisement ${ad?.name ?? ""}`, metadata: {} }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]); }
 
