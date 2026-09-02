@@ -4220,7 +4220,7 @@ input {
   grid-template-columns: minmax(0, 1fr) 148px;
   gap: 0.7rem;
   align-items: stretch;
-  padding: 0.45rem;
+  padding: 0.45rem 0.45rem 0.45rem 0;
   background: #f1f1f1;
   border: 1px solid #e1e1e1;
   font-size: 0.82rem;
@@ -4598,6 +4598,10 @@ input {
     grid-template-columns: minmax(0, 1fr) 120px;
     gap: 0.5rem;
     padding: 0.35rem;
+  }
+
+  .world-current-home .ranking {
+    padding-left: 0;
   }
 
   .trending-thumb,
