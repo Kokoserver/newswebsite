@@ -630,9 +630,9 @@ export default async function Home() {
                         <Image
                           src={item.imageUrl}
                           alt={item.imageAlt ?? item.title}
-                          width={92}
-                          height={64}
-                          sizes="92px"
+                          width={148}
+                          height={112}
+                          sizes="148px"
                         />
                       ) : (
                         <strong>{item.categoryName?.slice(0, 1) ?? "D"}</strong>
@@ -662,9 +662,9 @@ export default async function Home() {
                         <Image
                           src={item.imageUrl}
                           alt={item.imageAlt ?? item.title}
-                          width={92}
-                          height={64}
-                          sizes="92px"
+                          width={148}
+                          height={112}
+                          sizes="148px"
                         />
                       ) : (
                         <b>{item.categoryName?.slice(0, 1) ?? "D"}</b>

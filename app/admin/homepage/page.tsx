@@ -50,6 +50,41 @@ type ItemDto = {
   article: { title: string; status: string } | null;
 };
 
+type ImageGuidance = {
+  short: string;
+  detail: string;
+};
+
+function imageGuidanceForSection(section: Pick<SectionDto, "key" | "kind" | "title">): ImageGuidance {
+  const key = section.key.toLowerCase();
+
+  if (key === "hero" || section.kind === "HERO") {
+    return {
+      short: "Image size: 1200 x 760 px",
+      detail: "Use a 1200 x 760 px lead image for the homepage hero.",
+    };
+  }
+
+  if (section.kind === "ADVERTISEMENT") {
+    return {
+      short: "Ad sizes: 1200 x 320 px or 300 x 360 px",
+      detail: "Use 1200 x 320 px for billboard ads and 300 x 360 px for rail ads.",
+    };
+  }
+
+  if (section.kind === "VIDEO") {
+    return {
+      short: "Poster size: 1280 x 720 px",
+      detail: "Use a 1280 x 720 px poster image for video placements.",
+    };
+  }
+
+  return {
+    short: "Image size: 1200 x 760 px",
+    detail: "Use a 1200 x 760 px image. Homepage cards crop this asset automatically for section leads and sidebar placements.",
+  };
+}
+
 function toDate(value: string | null): Date | null {
   return value ? new Date(value) : null;
 }
@@ -222,6 +257,9 @@ export default function HomepageAdminPage() {
           <div>
             <span className="admin-eyebrow">Layout</span>
             <h2>Create section <InfoTooltip text="A section is a named block on the homepage. Kind controls its presentation, while position controls its order from top to bottom." /></h2>
+            <p className="admin-homepage-guidance-list">
+              HERO: <code>1200 x 760</code> px. CATEGORY, LATEST, FEATURED, OPINION: <code>1200 x 760</code> px. VIDEO: <code>1280 x 720</code> px poster. ADVERTISEMENT: <code>1200 x 320</code> px billboard or <code>300 x 360</code> px rail.
+            </p>
           </div>
         </div>
         <form
@@ -256,6 +294,7 @@ export default function HomepageAdminPage() {
         {(sections ?? []).map((section) => {
           const items = itemsBySection[section.id] ?? [];
           const sectionLoading = !readySections.has(section.id);
+          const imageGuidance = imageGuidanceForSection(section);
 
           return (
             <details
@@ -271,6 +310,7 @@ export default function HomepageAdminPage() {
                 <span className="admin-homepage-section-name">
                   <strong>{section.title}</strong>
                   <small>{section.key}</small>
+                  <small className="admin-homepage-guidance">{imageGuidance.short}</small>
                 </span>
                 <span className="admin-homepage-kind">{section.kind.replaceAll("_", " ")}</span>
                 {sectionLoading && openId === section.id ? (
@@ -302,6 +342,8 @@ export default function HomepageAdminPage() {
                     <SubmitButton danger>Delete section</SubmitButton>
                   </form>
                 </div>
+
+                <p className="admin-homepage-section-note">{imageGuidance.detail}</p>
 
                 {sectionLoading ? (
                   <div className="admin-loading admin-section-loading" role="status" aria-live="polite">
