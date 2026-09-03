@@ -3613,7 +3613,7 @@ input {
 .home-river-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 1rem;
+  gap: 0.65rem;
   padding: 0.8rem;
   align-items: start;
 }
@@ -4220,7 +4220,7 @@ input {
   grid-template-columns: minmax(0, 1fr) 148px;
   gap: 0.7rem;
   align-items: stretch;
-  padding: 0.45rem 0.45rem 0.45rem 0;
+  padding: 0.45rem;
   background: #f1f1f1;
   border: 1px solid #e1e1e1;
   font-size: 0.82rem;
@@ -4598,10 +4598,6 @@ input {
     grid-template-columns: minmax(0, 1fr) 120px;
     gap: 0.5rem;
     padding: 0.35rem;
-  }
-
-  .world-current-home .ranking {
-    padding-left: 0;
   }
 
   .trending-thumb,
