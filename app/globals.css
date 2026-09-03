@@ -3941,7 +3941,6 @@ input {
   display: grid;
   gap: 0.48rem;
   margin: 0;
-  padding-left: 1.1rem;
   color: var(--world-current-red);
 }
 
