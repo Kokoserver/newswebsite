@@ -429,20 +429,23 @@ function categoryRiverStories(
   title: string,
   latest: ListedStory[],
   archive: { items: { id: string; title: string; slug: string; excerpt: string | null; heroImageUrl: string | null; heroImageAlt: string | null }[] } | null,
+  placedArticleIds: Set<string>,
 ) {
   const archiveStories =
-    archive?.items.map((item) => ({
-      id: item.id,
-      title: item.title,
-      href: `/articles/${item.slug}`,
-      category: title,
-      categorySlug: slug,
-      excerpt: item.excerpt,
-      imageUrl: item.heroImageUrl,
-      imageAlt: item.heroImageAlt ?? item.title,
-      publishedAt: null,
-      seed: item.slug,
-    })) ?? [];
+    archive?.items
+      .filter((item) => !placedArticleIds.has(item.id))
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        href: `/articles/${item.slug}`,
+        category: title,
+        categorySlug: slug,
+        excerpt: item.excerpt,
+        imageUrl: item.heroImageUrl,
+        imageAlt: item.heroImageAlt ?? item.title,
+        publishedAt: null,
+        seed: item.slug,
+      })) ?? [];
   const sameCategory = latest.filter((story) => story.categorySlug === slug);
 
   return uniqueStories([...archiveStories, ...sameCategory]).slice(0, 6);
@@ -461,7 +464,15 @@ export default async function Home() {
   ]);
 
   const latestStories = latestArticles.map(listedFromArticle);
-  const pulseItems = latestStories.slice(0, 5);
+
+  const placedArticleIds = new Set(
+    homepageData
+      .flatMap((section) => section.items.map((item) => item.articleId))
+      .filter((id): id is string => Boolean(id)),
+  );
+  const visibleLatest = latestStories.filter((story) => !placedArticleIds.has(story.id));
+
+  const pulseItems = visibleLatest.slice(0, 5);
 
   const sectionByKey = new Map(homepageData.map((section) => [section.key, section]));
   const heroItems = sectionByKey.get("hero")?.items ?? [];
@@ -470,7 +481,7 @@ export default async function Home() {
     .filter((section) => section.kind === "CATEGORY")
     .slice(0, 12);
 
-  const fallbackHeroItems = latestStories.slice(0, 5).map((item) =>
+  const fallbackHeroItems = visibleLatest.slice(0, 5).map((item) =>
     homepageItemFromArticle({
       id: item.id,
       title: item.title,
@@ -488,13 +499,20 @@ export default async function Home() {
 
   const featuredStories = uniqueStories([
     ...featuredItems.map((item, index) => listedFromHomepage(item, `featured-${index}`)),
-    ...latestStories.slice(0, 4),
+    ...visibleLatest.slice(0, 4),
   ]);
 
+  const sectionLeadIds = new Set<string>();
+  for (const section of homepageData) {
+    const leadId = section.items[0]?.articleId;
+    if (leadId) sectionLeadIds.add(leadId);
+  }
   const curatedStories = homepageData.flatMap((section) =>
     section.items.map((item, index) => listedFromHomepage(item, `${section.key}-${index}`)),
   );
-  const railStories = uniqueStories([...curatedStories, ...latestStories]).slice(0, 10);
+  const railStories = uniqueStories([...curatedStories, ...visibleLatest])
+    .filter((story) => !sectionLeadIds.has(story.id))
+    .slice(0, 10);
 
   const billboardAd = homepageTopAds[0] ?? null;
   const railAds = [...homepageMiddleAds, ...homepageTopAds.slice(1)];
@@ -515,12 +533,18 @@ export default async function Home() {
   }));
 
   const sidebarRails = await Promise.all(
-    railNavItems.map(async (item) => ({
-      id: item.slug,
-      title: item.label,
-      href: item.href,
-      stories: categoryRiverStories(item.slug, item.label, latestStories, await getCategoryArchive(item.slug, 10, 0)),
-    })),
+    railNavItems.map(async (item) => {
+      const placedItems = sectionByKey.get(item.slug)?.items ?? [];
+      return {
+        id: item.slug,
+        title: item.label,
+        href: item.href,
+        stories: uniqueStories([
+          ...placedItems.map((story, index) => listedFromHomepage(story, `${item.slug}-placed-${index}`)),
+          ...categoryRiverStories(item.slug, item.label, visibleLatest, await getCategoryArchive(item.slug, 10, 0), placedArticleIds),
+        ]),
+      };
+    }),
   );
 
   return (
@@ -604,14 +628,17 @@ export default async function Home() {
             <SectionRiver
               title={section.title}
               sectionKey={section.key}
-              stories={categoryRiverStories(section.key, section.title, latestStories, null)}
+              stories={uniqueStories([
+                ...section.items.map((item, index) => listedFromHomepage(item, `${section.key}-placed-${index}`)),
+                ...categoryRiverStories(section.key, section.title, visibleLatest, null, placedArticleIds),
+              ])}
               key={section.id}
             />
           ))}
           <SectionRiver
             title="Latest News"
             sectionKey="latest"
-            stories={latestStories.slice(5)}
+            stories={visibleLatest.slice(5)}
             href="/latest"
           />
         </div>
