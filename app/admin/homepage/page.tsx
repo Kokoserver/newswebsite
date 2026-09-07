@@ -96,6 +96,21 @@ function formatDateTimeLocal(value: Date | null | undefined) {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
 
+async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (response.ok) return response;
+      lastError = new Error(`Request failed with status ${response.status}.`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 500));
+  }
+  throw lastError;
+}
+
 function PlacementFields({
   item,
   mediaOptions,
@@ -146,6 +161,44 @@ function PlacementFields({
   );
 }
 
+function HomepageActionForm({
+  action,
+  onDone,
+  className,
+  children,
+}: {
+  action: (formData: FormData) => Promise<void>;
+  onDone: () => Promise<void> | void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  return (
+    <form
+      className={className}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (busy) return;
+        const formData = new FormData(event.currentTarget);
+        setBusy(true);
+        setMessage(null);
+        Promise.resolve(action(formData))
+          .then(() => onDone())
+          .catch((error: unknown) => {
+            setMessage(error instanceof Error ? error.message : "Something went wrong.");
+          })
+          .finally(() => setBusy(false));
+      }}
+    >
+      {children}
+      {busy ? <span className="admin-homepage-action-busy" role="status">Working…</span> : null}
+      {message ? <p className="admin-homepage-action-message" role="alert">{message}</p> : null}
+    </form>
+  );
+}
+
 export default function HomepageAdminPage() {
   const [sections, setSections] = useState<SectionDto[] | null>(null);
   const [media, setMedia] = useState<MediaOption[]>([]);
@@ -160,11 +213,9 @@ export default function HomepageAdminPage() {
     if (loadedSections.current.has(sectionId)) return;
     loadedSections.current.add(sectionId);
     try {
-      const response = await fetch(`/api/admin/homepage?section=${encodeURIComponent(sectionId)}`);
+      const response = await fetchWithRetry(`/api/admin/homepage?section=${encodeURIComponent(sectionId)}`);
       const data = await response.json() as { items?: ItemDto[] };
-      if (response.ok) {
-        setItemsBySection((prev) => ({ ...prev, [sectionId]: data.items ?? [] }));
-      }
+      setItemsBySection((prev) => ({ ...prev, [sectionId]: data.items ?? [] }));
     } catch {
       loadedSections.current.delete(sectionId);
     } finally {
@@ -205,6 +256,41 @@ export default function HomepageAdminPage() {
     void load();
     return () => controller.abort();
   }, [loadSectionItems]);
+
+  const refreshHomepageData = useCallback(async () => {
+    try {
+      const response = await fetchWithRetry("/api/admin/homepage");
+      const data = await response.json() as { sections?: SectionDto[]; media?: MediaOption[] };
+      setSections(data.sections ?? []);
+      setMedia(data.media ?? []);
+      return data as { sections: SectionDto[]; media: MediaOption[] };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const reloadSectionItems = useCallback(async (sectionId: string) => {
+    try {
+      const response = await fetchWithRetry(`/api/admin/homepage?section=${encodeURIComponent(sectionId)}`);
+      const data = await response.json() as { items?: ItemDto[] };
+      setItemsBySection((prev) => ({ ...prev, [sectionId]: data.items ?? [] }));
+      setReadySections((prev) => new Set(prev).add(sectionId));
+      loadedSections.current.add(sectionId);
+    } catch {
+      // Keep the last known list when the refresh fails; the user can retry a save.
+    }
+  }, []);
+
+  const handleHomepageActionDone = useCallback(async () => {
+    const data = await refreshHomepageData();
+    const sectionId = data
+      ? (data.sections.some((section) => section.id === openId)
+          ? openId
+          : (data.sections[0]?.id ?? null))
+      : openId;
+    if (data) setOpenId(sectionId);
+    if (sectionId) await reloadSectionItems(sectionId);
+  }, [refreshHomepageData, reloadSectionItems, openId]);
 
   function handleSummaryClick(event: React.MouseEvent<HTMLElement>, sectionId: string) {
     event.preventDefault();
@@ -262,9 +348,10 @@ export default function HomepageAdminPage() {
             </p>
           </div>
         </div>
-        <form
+        <HomepageActionForm
           action={saveHomepageSection.bind(null, null)}
           className="admin-form-grid four admin-section-create-form"
+          onDone={handleHomepageActionDone}
         >
           <label>Title<input name="title" required /></label>
           <label>Key<input name="key" placeholder="Generated from title" /></label>
@@ -279,7 +366,7 @@ export default function HomepageAdminPage() {
             <input name="position" type="number" min="1" defaultValue={(sections?.length ?? 0) + 1} />
           </label>
           <SubmitButton>Create section</SubmitButton>
-        </form>
+        </HomepageActionForm>
       </section>
 
       <div className="admin-homepage-list-heading">
@@ -323,7 +410,7 @@ export default function HomepageAdminPage() {
 
               <div className="admin-homepage-section-body">
                 <div className="admin-homepage-section-head">
-                  <form action={saveHomepageSection.bind(null, section.id)} className="admin-form-grid four">
+                  <HomepageActionForm action={saveHomepageSection.bind(null, section.id)} className="admin-form-grid four" onDone={handleHomepageActionDone}>
                     <label>Title<input name="title" defaultValue={section.title} /></label>
                     <label>Key<input name="key" defaultValue={section.key} /></label>
                     <label>
@@ -337,10 +424,10 @@ export default function HomepageAdminPage() {
                       <input name="position" type="number" min="1" defaultValue={section.position} />
                     </label>
                     <SubmitButton>Save section</SubmitButton>
-                  </form>
-                  <form action={deleteHomepageSection.bind(null, section.id)}>
+                  </HomepageActionForm>
+                  <HomepageActionForm action={deleteHomepageSection.bind(null, section.id)} onDone={handleHomepageActionDone}>
                     <SubmitButton danger>Delete section</SubmitButton>
-                  </form>
+                  </HomepageActionForm>
                 </div>
 
                 <p className="admin-homepage-section-note">{imageGuidance.detail}</p>
@@ -354,28 +441,29 @@ export default function HomepageAdminPage() {
                   <div className="admin-placement-list">
                     {items.map((item) => (
                       <article key={item.id}>
-                        <form action={saveHomepageItem.bind(null, item.id)} className="admin-form-grid placement">
+                        <HomepageActionForm action={saveHomepageItem.bind(null, item.id)} className="admin-form-grid placement" onDone={handleHomepageActionDone}>
                           <input type="hidden" name="sectionId" value={section.id} />
                           <PlacementFields item={item} mediaOptions={media} defaultPosition={item.position} />
                           <SubmitButton>Save placement</SubmitButton>
-                        </form>
+                        </HomepageActionForm>
                         <div className="admin-placement-title">{item.article?.title ?? "Media placement"}</div>
-                        <form action={deleteHomepageItem.bind(null, item.id)}>
+                        <HomepageActionForm action={deleteHomepageItem.bind(null, item.id)} onDone={handleHomepageActionDone}>
                           <SubmitButton danger>Remove</SubmitButton>
-                        </form>
+                        </HomepageActionForm>
                       </article>
                     ))}
                   </div>
                 )}
 
-                <form
+                <HomepageActionForm
                   action={saveHomepageItem.bind(null, null)}
                   className="admin-form-grid placement admin-new-placement"
+                  onDone={handleHomepageActionDone}
                 >
                   <input type="hidden" name="sectionId" value={section.id} />
                   <PlacementFields mediaOptions={media} defaultPosition={items.length + 1} />
                   <SubmitButton>Add placement</SubmitButton>
-                </form>
+                </HomepageActionForm>
               </div>
             </details>
           );

@@ -42,6 +42,8 @@ export default function AdminShell({
   const [compact, setCompact] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const visibleItems = items.filter((item) => permissions.includes(item.permission));
+  const primaryHrefs = ["/admin", "/admin/articles", "/admin/media", "/admin/comments"];
+  const bottomItems = items.filter((item) => primaryHrefs.includes(item.href) && permissions.includes(item.permission));
 
   useEffect(() => {
     const id = window.setTimeout(() => setPending(null), 0);
@@ -92,6 +94,18 @@ export default function AdminShell({
         </div>
       </aside>
       {open ? <button className="admin-scrim" onClick={() => setOpen(false)} aria-label="Close navigation" /> : null}
+      <nav className="admin-bottom-nav" aria-label="Quick navigation">
+        {bottomItems.map(({ href, label, icon: Icon }) => {
+          const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
+          return (
+            <Link key={href} href={href} className={active ? "is-active" : ""} onClick={() => handleNav(href)}>
+              <Icon size={19} />
+              <span>{label}</span>
+            </Link>
+          );
+        })}
+        <button type="button" onClick={() => setOpen(true)} aria-label="Open full menu"><Menu size={19} /><span>Menu</span></button>
+      </nav>
       <div className="admin-main">
         <header className="admin-topbar">
           <button className="admin-menu-button" onClick={() => setOpen(true)} aria-label="Open menu"><Menu size={21} /></button>

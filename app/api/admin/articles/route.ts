@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, like } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { getCurrentAdminUser, hasPermission } from "@/src/admin/permissions";
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     where: and(
       isNull(articles.deletedAt),
       requestedId ? eq(articles.id, requestedId) : undefined,
-      !requestedId && query ? ilike(articles.title, `%${query}%`) : undefined,
+      !requestedId && query ? like(articles.title, `%${query}%`) : undefined,
     ),
     orderBy: [desc(articles.updatedAt)],
     limit: requestedId ? 1 : limit,
