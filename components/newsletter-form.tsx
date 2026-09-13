@@ -38,7 +38,7 @@ export default function NewsletterForm() {
     if (data?.alreadySubscribed) {
       setMessage({
         type: "info",
-        text: "You are already subscribed to the Daily Brief.",
+        text: "You are already subscribed to The Current Brief.",
       });
       return;
     }
@@ -46,7 +46,7 @@ export default function NewsletterForm() {
     setEmail("");
     setMessage({
       type: "success",
-      text: "Thanks! You are now subscribed to the Daily Brief.",
+      text: "Thanks! You are now subscribed to The Current Brief.",
     });
   }
 

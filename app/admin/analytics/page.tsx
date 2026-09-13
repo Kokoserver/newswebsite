@@ -1,4 +1,5 @@
 import { desc, gte, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { Eye, MousePointerClick, Newspaper, Users } from "lucide-react";
 
 import { requireAdminUser } from "@/src/admin/permissions";
@@ -6,19 +7,27 @@ import { dateDaysAgo } from "@/src/admin/shared";
 import { getDb } from "@/src/db";
 import { articleViewDailyStats, articleViews, articles } from "@/src/db/schema";
 
+const loadAnalyticsCached = unstable_cache(
+  async (days: number, startDay: string) => {
+    const start = dateDaysAgo(days);
+    const db = await getDb();
+    return Promise.all([
+      db.select({ views: sql<number>`coalesce(sum(${articleViewDailyStats.views}), 0)`, visitors: sql<number>`coalesce(sum(${articleViewDailyStats.uniqueVisitors}), 0)` }).from(articleViewDailyStats).where(gte(articleViewDailyStats.day, startDay)),
+      db.select({ count: sql<number>`count(distinct ${articleViews.visitorHash})` }).from(articleViews).where(gte(articleViews.viewedAt, start)),
+      db.select({ id: articles.id, title: articles.title, slug: articles.slug, views: sql<number>`coalesce(sum(${articleViewDailyStats.views}), 0)` }).from(articleViewDailyStats).innerJoin(articles, sql`${articleViewDailyStats.articleId} = ${articles.id}`).where(gte(articleViewDailyStats.day, startDay)).groupBy(articles.id).orderBy(desc(sql`coalesce(sum(${articleViewDailyStats.views}), 0)`)).limit(10),
+      db.select({ day: articleViewDailyStats.day, views: sql<number>`sum(${articleViewDailyStats.views})`, visitors: sql<number>`sum(${articleViewDailyStats.uniqueVisitors})` }).from(articleViewDailyStats).where(gte(articleViewDailyStats.day, startDay)).groupBy(articleViewDailyStats.day).orderBy(articleViewDailyStats.day),
+    ]);
+  },
+  ["admin-analytics"],
+  { revalidate: 60, tags: ["analytics"] },
+);
+
 export default async function AnalyticsAdminPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   await requireAdminUser("analytics:view");
   const { days: daysParam = "30" } = await searchParams;
   const days = [7, 30, 90].includes(Number(daysParam)) ? Number(daysParam) : 30;
-  const start = dateDaysAgo(days);
-  const startDay = start.toISOString().slice(0, 10);
-  const db = await getDb();
-  const [summary, unique, top, daily] = await Promise.all([
-    db.select({ views: sql<number>`coalesce(sum(${articleViewDailyStats.views}), 0)`, visitors: sql<number>`coalesce(sum(${articleViewDailyStats.uniqueVisitors}), 0)` }).from(articleViewDailyStats).where(gte(articleViewDailyStats.day, startDay)),
-    db.select({ count: sql<number>`count(distinct ${articleViews.visitorHash})` }).from(articleViews).where(gte(articleViews.viewedAt, start)),
-    db.select({ id: articles.id, title: articles.title, slug: articles.slug, views: sql<number>`coalesce(sum(${articleViewDailyStats.views}), 0)` }).from(articleViewDailyStats).innerJoin(articles, sql`${articleViewDailyStats.articleId} = ${articles.id}`).where(gte(articleViewDailyStats.day, startDay)).groupBy(articles.id).orderBy(desc(sql`coalesce(sum(${articleViewDailyStats.views}), 0)`)).limit(10),
-    db.select({ day: articleViewDailyStats.day, views: sql<number>`sum(${articleViewDailyStats.views})`, visitors: sql<number>`sum(${articleViewDailyStats.uniqueVisitors})` }).from(articleViewDailyStats).where(gte(articleViewDailyStats.day, startDay)).groupBy(articleViewDailyStats.day).orderBy(articleViewDailyStats.day),
-  ]);
+  const startDay = dateDaysAgo(days).toISOString().slice(0, 10);
+  const [summary, unique, top, daily] = await loadAnalyticsCached(days, startDay);
   const max = Math.max(1, ...daily.map((item) => Number(item.views)));
 
   return <>

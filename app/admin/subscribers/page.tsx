@@ -66,7 +66,7 @@ export default async function SubscribersAdminPage({ searchParams }: { searchPar
             <span>{activeTotal.toLocaleString()} active recipients</span>
           </div>
           <div className="admin-form-grid two">
-            <label>Subject<input name="subject" required minLength={5} maxLength={160} placeholder="This week at the Daily Chronicle" /></label>
+            <label>Subject<input name="subject" required minLength={5} maxLength={160} placeholder="This week at THE WORLD CURRENT" /></label>
             <label>Preview text<input name="previewText" maxLength={240} placeholder="A short summary shown by email clients" /></label>
             <label className="span-two">Message<textarea name="content" required minLength={10} maxLength={10_000} rows={8} placeholder="Write the newsletter message in plain text. Paragraph spacing is preserved." /></label>
             <label className="span-two">Featured article URL<input name="articleUrl" type="url" maxLength={2_000} placeholder="https://example.com/articles/featured-story" /></label>
@@ -95,13 +95,13 @@ export default async function SubscribersAdminPage({ searchParams }: { searchPar
       </form>
 
       <section className="admin-card admin-table-wrap">
-        <table className="admin-table">
+        <table className="admin-table admin-table-stack">
           <thead><tr><th>Email</th><th>Joined</th><th>Confirmed</th><th>Status</th><th /></tr></thead>
           <tbody>{rows.map((subscriber) => (
             <tr key={subscriber.id}>
-              <td><strong>{subscriber.email}</strong></td><td>{new Date(subscriber.createdAt).toLocaleDateString()}</td><td>{subscriber.confirmedAt ? new Date(subscriber.confirmedAt).toLocaleDateString() : "-"}</td>
-              <td><form action={updateSubscriber.bind(null, subscriber.id)} className="admin-table-action"><select name="status" defaultValue={subscriber.status}>{newsletterSubscriberStatusValues.map((value) => <option key={value}>{humanize(value)}</option>)}</select><SubmitButton>Save</SubmitButton></form></td>
-              <td><form action={deleteSubscriber.bind(null, subscriber.id)}><SubmitButton danger>Delete</SubmitButton></form></td>
+              <td data-label="Email"><strong>{subscriber.email}</strong></td><td data-label="Joined">{new Date(subscriber.createdAt).toLocaleDateString()}</td><td data-label="Confirmed">{subscriber.confirmedAt ? new Date(subscriber.confirmedAt).toLocaleDateString() : "-"}</td>
+              <td data-label="Status"><form action={updateSubscriber.bind(null, subscriber.id)} className="admin-table-action"><select name="status" defaultValue={subscriber.status}>{newsletterSubscriberStatusValues.map((value) => <option key={value}>{humanize(value)}</option>)}</select><SubmitButton>Save</SubmitButton></form></td>
+              <td data-label="Actions"><form action={deleteSubscriber.bind(null, subscriber.id)}><SubmitButton danger>Delete</SubmitButton></form></td>
             </tr>
           ))}</tbody>
         </table>

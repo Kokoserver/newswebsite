@@ -1,5 +1,5 @@
 const demoSiteUrl = "http://localhost:3000";
-const demoAuthSecret = "daily-chronicle-demo-auth-secret-change-before-production";
+const demoAuthSecret = "world-current-demo-auth-secret-change-before-production";
 
 export function getSiteUrl() {
   if (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.AUTH_URL ?? process.env.NEXTAUTH_URL) {

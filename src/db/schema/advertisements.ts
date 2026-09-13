@@ -84,13 +84,47 @@ export const advertisementAssignments = sqliteTable(
   ],
 );
 
+export const advertisementMedia = sqliteTable(
+  "advertisement_media",
+  {
+    id: text("id").$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    advertisementId: text("advertisement_id")
+      .notNull()
+      .references(() => advertisements.id, { onDelete: "cascade" }),
+    mediaId: text("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "cascade" }),
+    position: integer("position").default(1).notNull(),
+  },
+  (table) => [
+    uniqueIndex("advertisement_media_position_unique").on(table.advertisementId, table.position),
+    uniqueIndex("advertisement_media_media_unique").on(table.advertisementId, table.mediaId),
+    index("advertisement_media_media_idx").on(table.mediaId),
+  ],
+);
+
 export const advertisementsRelations = relations(advertisements, ({ one, many }) => ({
   media: one(media, {
     fields: [advertisements.mediaId],
     references: [media.id],
   }),
   assignments: many(advertisementAssignments),
+  mediaItems: many(advertisementMedia),
 }));
+
+export const advertisementMediaRelations = relations(
+  advertisementMedia,
+  ({ one }) => ({
+    advertisement: one(advertisements, {
+      fields: [advertisementMedia.advertisementId],
+      references: [advertisements.id],
+    }),
+    media: one(media, {
+      fields: [advertisementMedia.mediaId],
+      references: [media.id],
+    }),
+  }),
+);
 
 export type Advertisement = typeof advertisements.$inferSelect;
 export type NewAdvertisement = typeof advertisements.$inferInsert;

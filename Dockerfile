@@ -5,13 +5,24 @@ FROM node:22-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN corepack enable
-
 WORKDIR /app
+
+COPY package.json ./
+
+RUN PM="$(node -p 'const p=require("./package.json").packageManager||""; p')" \
+  && if [ -z "$PM" ]; then corepack enable; else \
+    downloaded=0; \
+    for i in $(seq 1 10); do \
+      if corepack prepare "$PM" --activate; then echo "corepack prepared $PM"; downloaded=1; break; fi; \
+      echo "corepack download attempt $i failed, retrying in 5s"; sleep 5; \
+    done; \
+    if [ "$downloaded" -ne 1 ]; then echo "corepack: giving up on $PM"; exit 1; fi; \
+    corepack enable; \
+  fi
 
 FROM base AS dependencies
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 
 RUN pnpm config set fetch-retries 5 \
   && pnpm config set fetch-timeout 600000 \

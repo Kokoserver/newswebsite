@@ -1,14 +1,16 @@
 import { ArrowRight, Home, Search } from "lucide-react";
 import Link from "next/link";
 
+import BrandLogo from "@/components/brand-logo";
+
 export default function NotFound() {
   return (
     <main className="status-page status-page-not-found">
       <header className="status-header">
-        <Link className="status-brand" href="/" aria-label="Daily Chronicle home">
-          <span>Daily</span> Chronicle
+        <Link className="status-brand" href="/" aria-label="THE WORLD CURRENT home">
+          <BrandLogo />
         </Link>
-        <span className="status-edition">Digital edition · Page unavailable</span>
+        <span className="status-edition">Global edition · Page unavailable</span>
       </header>
 
       <section className="status-stage">
@@ -33,7 +35,7 @@ export default function NotFound() {
 
       <footer className="status-footer">
         <span>Try another route</span>
-        <Link href="/search"><Search size={14} />Search the Chronicle</Link>
+        <Link href="/search"><Search size={14} />Search THE WORLD CURRENT</Link>
         <Link href="/latest">Latest stories</Link>
       </footer>
     </main>

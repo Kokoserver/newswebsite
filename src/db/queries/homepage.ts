@@ -80,6 +80,7 @@ const getHomepageDataCached = unstable_cache(
         and(
           or(isNull(homepageItems.startsAt), lte(homepageItems.startsAt, now)),
           or(isNull(homepageItems.endsAt), gte(homepageItems.endsAt, now)),
+          or(isNull(articles.status), eq(articles.status, "PUBLISHED")),
         ),
       )
       .orderBy(asc(homepageSections.position), asc(homepageItems.position));

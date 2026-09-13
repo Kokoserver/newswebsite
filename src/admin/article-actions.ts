@@ -1,6 +1,7 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
@@ -11,10 +12,15 @@ import { hasPermission, requireAdminUser, requireArticleAccess } from "@/src/adm
 import { checked, dateOrNull, optionalText, textValue } from "@/src/admin/shared";
 import { getSiteUrl } from "@/src/config";
 import { getDb } from "@/src/db";
+import * as dbSchema from "@/src/db/schema";
 import {
   articleCategories, articleRevisions, articleTags, articles, auditLogs,
-  articleStatusValues, articleTypeValues,
+  articleStatusValues, articleTypeValues, homepageItems, homepageSections,
 } from "@/src/db/schema";
+
+type Db = LibSQLDatabase<typeof dbSchema>;
+
+const POSITION_OFFSET = 100000;
 
 const articleInput = z.object({
   title: z.string().trim().min(5).max(300),
@@ -110,6 +116,25 @@ function publicationDates(status: (typeof articleStatusValues)[number], schedule
   };
 }
 
+async function ensureHomepagePlacement(
+  tx: Parameters<Parameters<Db["transaction"]>[0]>[0],
+  sectionId: string,
+  articleId: string,
+  mediaId: string | null,
+  scheduledAt: Date | null,
+  actorId: string,
+) {
+  const existing = await tx.query.homepageItems.findFirst({
+    columns: { id: true },
+    where: and(eq(homepageItems.sectionId, sectionId), eq(homepageItems.articleId, articleId)),
+  });
+  if (existing) return;
+  await tx.update(homepageItems).set({ position: sql`${homepageItems.position} + ${POSITION_OFFSET}` }).where(eq(homepageItems.sectionId, sectionId));
+  await tx.update(homepageItems).set({ position: sql`${homepageItems.position} - ${POSITION_OFFSET} + 1` }).where(and(eq(homepageItems.sectionId, sectionId), sql`${homepageItems.position} >= ${POSITION_OFFSET}`));
+  await tx.insert(homepageItems).values({ sectionId, articleId, mediaId: mediaId ?? null, position: 1, startsAt: scheduledAt }).returning({ id: homepageItems.id });
+  await tx.insert(auditLogs).values({ actorId, articleId, action: "CREATE", entityType: "homepage_item", entityId: articleId, summary: "Auto-placed on homepage at article save", metadata: { sectionId } });
+}
+
 export async function saveArticle(articleId: string | null, formData: FormData) {
   const actor = articleId ? await requireArticleAccess(articleId) : await requireAdminUser("articles:create");
   const canEditAll = hasPermission(actor.role, "articles:edit-all");
@@ -117,6 +142,7 @@ export async function saveArticle(articleId: string | null, formData: FormData) 
   if ((input.status === "PUBLISHED" || input.status === "SCHEDULED") && !hasPermission(actor.role, "articles:publish")) {
     throw new Error("You do not have permission to publish articles.");
   }
+  const homepagePlacementSectionId = z.string().uuid().nullable().parse(optionalText(formData, "homepagePlacementSectionId"));
 
   const db = await getDb();
   let id = articleId;
@@ -147,6 +173,11 @@ export async function saveArticle(articleId: string | null, formData: FormData) 
     if (input.categories.length) await tx.insert(articleCategories).values(input.categories.map((categoryId) => ({ articleId: id!, categoryId, isPrimary: categoryId === input.primaryCategoryId })));
     await tx.delete(articleTags).where(eq(articleTags.articleId, id));
     if (input.tags.length) await tx.insert(articleTags).values(input.tags.map((tagId) => ({ articleId: id!, tagId })));
+    if (homepagePlacementSectionId) {
+      const section = await tx.query.homepageSections.findFirst({ columns: { id: true }, where: eq(homepageSections.id, homepagePlacementSectionId) });
+      if (!section) throw new Error("Choose a valid homepage section.");
+      await ensureHomepagePlacement(tx, homepagePlacementSectionId, id!, input.heroImageId, input.status === "SCHEDULED" ? input.scheduledAt : null, actor.id);
+    }
     await tx.insert(auditLogs).values({
       actorId: actor.id, articleId: id, action: existing ? "UPDATE" : "CREATE",
       entityType: "article", entityId: id, summary: `${existing ? "Updated" : "Created"} ${input.title}`,

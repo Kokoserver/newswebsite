@@ -4,6 +4,8 @@ import { ImageIcon, Library, Search, UploadCloud, Video, X } from "lucide-react"
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import { UploadProgress, uploadMedia } from "./client-media-upload";
+
 type MediaOption = {
   id: string;
   title: string | null;
@@ -35,6 +37,7 @@ export default function MediaPickerField({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadAlt, setUploadAlt] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,24 +133,26 @@ export default function MediaPickerField({
     }
 
     setUploading(true);
+    setUploadProgress(0);
     setError(null);
     try {
       const formData = new FormData();
       formData.set("file", file);
       formData.set("title", uploadTitle);
       formData.set("altText", uploadAlt);
-      const response = await fetch("/api/admin/media", { method: "POST", body: formData });
-      const result = await response.json() as { item?: MediaOption; message?: string };
-      if (!response.ok || !result.item) throw new Error(result.message ?? "Upload failed.");
-      if (result.item.kind !== kind) throw new Error(`The uploaded file is not a ${kind.toLowerCase()}.`);
+      const { ok, body } = await uploadMedia(formData, setUploadProgress);
+      const item = body.item;
+      if (!ok || !item) throw new Error(body.message ?? "Upload failed.");
+      if (item.kind !== kind) throw new Error(`The uploaded file is not a ${kind.toLowerCase()}.`);
       setUploadTitle("");
       setUploadAlt("");
       if (fileInputRef.current) fileInputRef.current.value = "";
-      choose(result.item);
+      choose(item);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   }
 
@@ -235,11 +240,12 @@ export default function MediaPickerField({
                 </div>
                 <label>
                   {kind === "IMAGE" ? "Image" : "Video"}
-                  <input ref={fileInputRef} type="file" accept={kind === "IMAGE" ? "image/jpeg,image/png,image/webp,image/gif" : "video/mp4,video/webm"} />
+                  <input ref={fileInputRef} type="file" accept={kind === "IMAGE" ? "image/jpeg,image/png,image/webp,image/gif" : "video/mp4,video/webm"} disabled={uploading} />
                 </label>
-                <label>Title<input value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} maxLength={240} placeholder="Newsroom display title" /></label>
-                {kind === "IMAGE" ? <label>Alt text<input value={uploadAlt} onChange={(event) => setUploadAlt(event.target.value)} maxLength={320} placeholder="Describe the image for accessibility" /></label> : null}
+                <label>Title<input value={uploadTitle} onChange={(event) => setUploadTitle(event.target.value)} maxLength={240} placeholder="Newsroom display title" disabled={uploading} /></label>
+                {kind === "IMAGE" ? <label>Alt text<input value={uploadAlt} onChange={(event) => setUploadAlt(event.target.value)} maxLength={320} placeholder="Describe the image for accessibility" disabled={uploading} /></label> : null}
                 <button type="button" className="admin-button" onClick={upload} disabled={uploading}>{uploading ? "Uploading..." : "Upload and select"}</button>
+                {uploading ? <UploadProgress progress={uploadProgress} /> : null}
                 {error ? <p className="admin-editor-message error" aria-live="polite">{error}</p> : null}
               </div>
             )}

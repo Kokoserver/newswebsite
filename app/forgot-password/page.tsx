@@ -2,6 +2,7 @@ import { Home, Search } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import BrandLogo from "@/components/brand-logo";
 import ForgotPasswordForm from "@/components/forgot-password-form";
 import UserMenu from "@/components/user-menu";
 import { getSession } from "@/src/session";
@@ -19,7 +20,7 @@ export default async function ForgotPasswordPage() {
     <main className="route-page auth-route-page">
       <header className="route-header">
         <Link href="/" className="route-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="route-actions">
           <Link href="/search" aria-label="Search" title="Search">
@@ -38,7 +39,7 @@ export default async function ForgotPasswordPage() {
           <h1>Reset your password</h1>
           <p>
             Enter your account email and we will create a secure reset link for
-            your Daily Chronicle account.
+            your THE WORLD CURRENT account.
           </p>
         </div>
 

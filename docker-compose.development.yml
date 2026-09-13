@@ -24,7 +24,19 @@ services:
   app:
     image: node:22-alpine
     working_dir: /app
-    command: sh -c "corepack enable && pnpm install && pnpm dev"
+    restart: unless-stopped
+    command: |-
+      /bin/sh -c '
+      i=0
+      until corepack enable && pnpm install --prefer-offline; do
+        rc=$?
+        i=$((i+1))
+        if [ "$$i" -ge 10 ]; then echo "corepack/pnpm fetch failed persistently"; exit "$$rc"; fi
+        echo "corepack/pnpm fetch failed (attempt $$i), retrying in 5s"
+        sleep 5
+      done
+      exec pnpm dev
+      '
     depends_on:
       db:
         condition: service_healthy
@@ -47,7 +59,9 @@ services:
     volumes:
       - .:/app
       - node_modules:/app/node_modules
+      - corepack:/root/.cache/node/corepack
 
 volumes:
   postgres_data:
   node_modules:
+  corepack:

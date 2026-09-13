@@ -2,7 +2,8 @@
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { and, eq, ne, sql } from "drizzle-orm";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import { and, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import slugify from "slugify";
@@ -12,12 +13,17 @@ import { requireAdminUser } from "@/src/admin/permissions";
 import { checked, dateOrNull, optionalText, positiveInteger, textValue } from "@/src/admin/shared";
 import { getSiteUrl } from "@/src/config";
 import { getDb } from "@/src/db";
+import * as schema from "@/src/db/schema";
+
+type Db = LibSQLDatabase<typeof schema>;
 import {
-  advertisementAssignments, advertisements, advertisementSlotValues, advertisementStatusValues,
-  auditLogs, categories, comments, commentStatusValues, homepageItems, homepageSections,
-  homepageSectionKindValues, navbarItems, newsletterSubscribers, newsletterSubscriberStatusValues,
-  passwordResetTokens, tags, userRoleValues, users, userStatusValues,
+  advertisementAssignments, advertisementMedia, advertisements, advertisementSlotValues,
+  advertisementStatusValues, auditLogs, categories, comments, commentStatusValues, homepageItems,
+  homepageSections, homepageSectionKindValues, media, navbarItems, newsletterSubscribers,
+  newsletterSubscriberStatusValues, passwordResetTokens, tags, userRoleValues, users, userStatusValues,
 } from "@/src/db/schema";
+
+const POSITION_OFFSET = 100000;
 
 function invalidateAdmin(path: string, publicPaths: string[] = [], tagsToUpdate: string[] = []) {
   revalidatePath(path); revalidatePath("/admin"); publicPaths.forEach((value) => revalidatePath(value));
@@ -85,8 +91,44 @@ export async function saveHomepageItem(itemId: string | null, formData: FormData
   const startsAt = dateOrNull(formData, "startsAt"); const endsAt = dateOrNull(formData, "endsAt"); if (startsAt && endsAt && endsAt <= startsAt) throw new Error("End time must be after start time.");
   const values = { sectionId: z.string().uuid().parse(textValue(formData, "sectionId")), articleId: optionalText(formData, "articleId"), mediaId: optionalText(formData, "mediaId"), titleOverride: optionalText(formData, "titleOverride"), dekOverride: optionalText(formData, "dekOverride"), position: positiveInteger(formData, "position"), startsAt, endsAt };
   if (!values.articleId && !values.mediaId) throw new Error("Choose an article or media item.");
-  const db = await getDb(); await db.transaction(async (tx) => { let id = itemId; if (id) await tx.update(homepageItems).set(values).where(eq(homepageItems.id, id)); else { const [created] = await tx.insert(homepageItems).values(values).returning({ id: homepageItems.id }); id = created.id; } await tx.insert(auditLogs).values({ actorId: actor.id, action: itemId ? "UPDATE" : "CREATE", entityType: "homepage_item", entityId: id, summary: `${itemId ? "Updated" : "Created"} homepage placement`, metadata: { sectionId: values.sectionId } }); });
-  invalidateAdmin("/admin/homepage", ["/"], ["homepage"]);
+  const db = await getDb(); await db.transaction(async (tx) => {
+    if (values.articleId) {
+      const duplicate = await tx.query.homepageItems.findFirst({ columns: { id: true }, where: and(eq(homepageItems.sectionId, values.sectionId), eq(homepageItems.articleId, values.articleId)) });
+      if (duplicate && duplicate.id !== itemId) throw new Error("This article is already placed in this section.");
+    }
+    let id = itemId;
+    if (id) {
+      const existing = await tx.query.homepageItems.findFirst({ columns: { id: true, position: true, sectionId: true }, where: eq(homepageItems.id, id) });
+      if (!existing) throw new Error("Placement not found.");
+      const before = existing.position;
+      const after = values.position;
+      if (after < before) {
+        await shiftPositions(tx, values.sectionId, [{ delta: 1, condition: sql`${homepageItems.position} >= ${after + POSITION_OFFSET} and ${homepageItems.position} < ${before + POSITION_OFFSET}` }], id);
+      } else if (after > before) {
+        await shiftPositions(tx, values.sectionId, [{ delta: -1, condition: sql`${homepageItems.position} > ${before + POSITION_OFFSET} and ${homepageItems.position} <= ${after + POSITION_OFFSET}` }], id);
+      }
+      await tx.update(homepageItems).set(values).where(eq(homepageItems.id, id));
+    } else {
+      await shiftPositions(tx, values.sectionId, [{ delta: 1, condition: sql`${homepageItems.position} >= ${values.position + POSITION_OFFSET}` }]);
+      const [created] = await tx.insert(homepageItems).values(values).returning({ id: homepageItems.id });
+      id = created.id;
+    }
+    await tx.insert(auditLogs).values({ actorId: actor.id, action: itemId ? "UPDATE" : "CREATE", entityType: "homepage_item", entityId: id, summary: `${itemId ? "Updated" : "Created"} homepage placement`, metadata: { sectionId: values.sectionId } });
+  }); invalidateAdmin("/admin/homepage", ["/"], ["homepage"]);
+}
+
+async function shiftPositions(
+  tx: Parameters<Parameters<Db["transaction"]>[0]>[0],
+  sectionId: string,
+  ranges: Array<{ delta: number; condition: SQL }>,
+  excludeId: string | null = null,
+) {
+  const scope = and(eq(homepageItems.sectionId, sectionId), excludeId ? ne(homepageItems.id, excludeId) : undefined);
+  await tx.update(homepageItems).set({ position: sql`${homepageItems.position} + ${POSITION_OFFSET}` }).where(scope);
+  for (const range of ranges) {
+    await tx.update(homepageItems).set({ position: sql`${homepageItems.position} - ${POSITION_OFFSET} + ${range.delta}` }).where(and(scope, range.condition));
+  }
+  await tx.update(homepageItems).set({ position: sql`${homepageItems.position} - ${POSITION_OFFSET}` }).where(and(scope, sql`${homepageItems.position} >= ${POSITION_OFFSET}`));
 }
 
 export async function deleteHomepageItem(itemId: string) { const actor = await requireAdminUser("homepage:manage"); const db = await getDb(); await db.transaction(async (tx) => { await tx.delete(homepageItems).where(eq(homepageItems.id, itemId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "homepage_item", entityId: itemId, summary: "Removed homepage placement", metadata: {} }); }); invalidateAdmin("/admin/homepage", ["/"], ["homepage"]); }
@@ -98,11 +140,22 @@ export async function moderateComment(commentId: string, formData: FormData) {
   if (articleId) revalidatePath(`/admin/articles/${articleId}/details`);
 }
 
-const adSchema = z.object({ name: z.string().trim().min(2).max(200), status: z.enum(advertisementStatusValues), targetUrl: z.url(), mediaId: z.string().uuid().nullable(), slot: z.enum(advertisementSlotValues), position: z.number().int().positive(), startsAt: z.date(), endsAt: z.date() });
+const adSchema = z.object({ name: z.string().trim().min(2).max(200), status: z.enum(advertisementStatusValues), targetUrl: z.url(), slot: z.enum(advertisementSlotValues), position: z.number().int().positive(), startsAt: z.date(), endsAt: z.date() });
 export async function saveAdvertisement(adId: string | null, assignmentId: string | null, formData: FormData) {
   const actor = await requireAdminUser("ads:manage"); const startsAt = dateOrNull(formData, "startsAt"); const endsAt = dateOrNull(formData, "endsAt");
-  const input = adSchema.parse({ name: textValue(formData, "name"), status: textValue(formData, "status"), targetUrl: textValue(formData, "targetUrl"), mediaId: optionalText(formData, "mediaId"), slot: textValue(formData, "slot"), position: positiveInteger(formData, "position"), startsAt, endsAt }); if (input.endsAt <= input.startsAt) throw new Error("End time must be after start time.");
-  const db = await getDb(); await db.transaction(async (tx) => { let id = adId; const adValues = { name: input.name, status: input.status, targetUrl: input.targetUrl, mediaId: input.mediaId, startsAt: input.startsAt, endsAt: input.endsAt }; if (id) await tx.update(advertisements).set(adValues).where(eq(advertisements.id, id)); else { const [created] = await tx.insert(advertisements).values(adValues).returning({ id: advertisements.id }); id = created.id; } const assignment = { advertisementId: id!, slot: input.slot, position: input.position, startsAt: input.startsAt, endsAt: input.endsAt }; if (assignmentId) await tx.update(advertisementAssignments).set(assignment).where(and(eq(advertisementAssignments.id, assignmentId), eq(advertisementAssignments.advertisementId, id!))); else await tx.insert(advertisementAssignments).values(assignment); await tx.insert(auditLogs).values({ actorId: actor.id, action: adId ? "UPDATE" : "CREATE", entityType: "advertisement", entityId: id, summary: `${adId ? "Updated" : "Created"} advertisement ${input.name}`, metadata: { slot: input.slot } }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]);
+  const input = adSchema.parse({ name: textValue(formData, "name"), status: textValue(formData, "status"), targetUrl: textValue(formData, "targetUrl"), slot: textValue(formData, "slot"), position: positiveInteger(formData, "position"), startsAt, endsAt }); if (input.endsAt <= input.startsAt) throw new Error("End time must be after start time.");
+  const mediaIds = formData.getAll("mediaItem").map((value) => String(value));
+  if (mediaIds.some((value) => !value.trim())) throw new Error("Choose at least one image or video for the ad.");
+  for (const mediaId of mediaIds) z.string().uuid().parse(mediaId);
+  const db = await getDb();
+  const existingMedia = await db.query.media.findMany({
+    columns: { id: true },
+    where: and(inArray(media.id, mediaIds), isNull(media.deletedAt)),
+  });
+  const existingIds = new Set(existingMedia.map((row) => row.id));
+  const resolvedMediaIds = mediaIds.filter((id) => existingIds.has(id));
+  if (resolvedMediaIds.length === 0) throw new Error("Choose at least one image or video for the ad.");
+  await db.transaction(async (tx) => { let id = adId; const adValues = { name: input.name, status: input.status, targetUrl: input.targetUrl, mediaId: resolvedMediaIds[0] ?? null, startsAt: input.startsAt, endsAt: input.endsAt }; if (id) await tx.update(advertisements).set(adValues).where(eq(advertisements.id, id)); else { const [created] = await tx.insert(advertisements).values(adValues).returning({ id: advertisements.id }); id = created.id; } const assignment = { advertisementId: id!, slot: input.slot, position: input.position, startsAt: input.startsAt, endsAt: input.endsAt }; if (assignmentId) await tx.update(advertisementAssignments).set(assignment).where(and(eq(advertisementAssignments.id, assignmentId), eq(advertisementAssignments.advertisementId, id!))); else await tx.insert(advertisementAssignments).values(assignment); await tx.delete(advertisementMedia).where(eq(advertisementMedia.advertisementId, id!)); await tx.insert(advertisementMedia).values(resolvedMediaIds.map((mediaId, index) => ({ advertisementId: id!, mediaId, position: index + 1 }))); await tx.insert(auditLogs).values({ actorId: actor.id, action: adId ? "UPDATE" : "CREATE", entityType: "advertisement", entityId: id, summary: `${adId ? "Updated" : "Created"} advertisement ${input.name}`, metadata: { slot: input.slot, mediaCount: resolvedMediaIds.length } }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]);
 }
 export async function deleteAdvertisement(adId: string) { const actor = await requireAdminUser("ads:manage"); const db = await getDb(); await db.transaction(async (tx) => { const ad = await tx.query.advertisements.findFirst({ where: eq(advertisements.id, adId) }); await tx.delete(advertisements).where(eq(advertisements.id, adId)); await tx.insert(auditLogs).values({ actorId: actor.id, action: "DELETE", entityType: "advertisement", entityId: adId, summary: `Deleted advertisement ${ad?.name ?? ""}`, metadata: {} }); }); invalidateAdmin("/admin/ads", ["/"], ["advertisements"]); }
 

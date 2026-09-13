@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import ArticleDiscoveryFields from "@/components/admin/article-discovery-fields";
 import ArticleEditor from "@/components/admin/article-editor";
+import ArticleSaveBar from "@/components/admin/article-save-bar";
 import InfoTooltip from "@/components/admin/info-tooltip";
 import MediaPickerField from "@/components/admin/media-picker-field";
 import { SubmitButton } from "@/components/admin/submit-button";
@@ -26,6 +27,8 @@ export default function ArticleForm({
   selectedCategoryIds = [],
   selectedTagIds = [],
   primaryCategoryId,
+  homepageSections = [],
+  defaultPlacementSectionId = null,
   canPublish,
   canAssign,
 }: {
@@ -37,11 +40,13 @@ export default function ArticleForm({
   selectedCategoryIds?: string[];
   selectedTagIds?: string[];
   primaryCategoryId?: string | null;
+  homepageSections?: Array<{ id: string; key: string; title: string; kind: string }>;
+  defaultPlacementSectionId?: string | null;
   canPublish: boolean;
   canAssign: boolean;
 }) {
   return (
-    <form action={action} className="admin-article-form">
+    <form action={action} className="admin-article-form" id="article-form">
       <div className="admin-editor-main">
         <section className="admin-card admin-form-section">
           <label className="admin-title-input">Headline<input name="title" required minLength={5} maxLength={300} defaultValue={article?.title ?? ""} placeholder="Write a clear, specific headline" /></label>
@@ -80,7 +85,6 @@ export default function ArticleForm({
           <label>Author<select name="authorId" defaultValue={article?.authorId ?? authors[0]?.id} disabled={!canAssign}>{authors.map((author) => <option key={author.id} value={author.id}>{author.name ?? author.email}</option>)}</select>{!canAssign ? <input type="hidden" name="authorId" value={article?.authorId ?? authors[0]?.id} /> : null}</label>
           <label className="admin-check"><input type="checkbox" name="isFeatured" defaultChecked={article?.isFeatured} />Feature this article</label>
           <label className="admin-check"><input type="checkbox" name="allowComments" defaultChecked={article?.allowComments ?? true} />Allow comments</label>
-          <SubmitButton>{article ? "Save changes" : "Create article"}</SubmitButton>
           {article?.status === "PUBLISHED" ? <Link className="admin-secondary-link" target="_blank" href={`/articles/${article.slug}`}>Open published story</Link> : null}
         </section>
         <section className="admin-card admin-form-section">
@@ -94,7 +98,13 @@ export default function ArticleForm({
           <MediaPickerField name="heroImageId" label="Article banner" kind="IMAGE" initialId={article?.heroImageId} />
           <MediaPickerField name="heroVideoId" label="Featured video" kind="VIDEO" initialId={article?.heroVideoId} />
         </section>
+        <section className="admin-card admin-form-section">
+          <div className="admin-help-heading"><span className="admin-eyebrow">Homepage placement</span><InfoTooltip text="Choose where this story should appear on the homepage so you don't have to place it afterwards. The story is added to the top of that section when the article is saved; fine-tune exact positions and order later on the homepage editor. Only visible after the story is published." /></div>
+          <label>Display section<select name="homepagePlacementSectionId" defaultValue={defaultPlacementSectionId ?? ""}>{[{ id: "", key: "none", title: "Do not place on homepage" }, ...homepageSections.filter((section) => ["HERO", "LATEST", "FEATURED", "CATEGORY"].includes(section.kind))].map((section) => <option key={section.id || "none"} value={section.id}>{section.title}</option>)}</select></label>
+          <div className="admin-placement-foot"><small>Applies when you publish or schedule this story. Leave unset to place it later from the homepage editor.</small><SubmitButton id="workflow-save-button">Save article</SubmitButton></div>
+        </section>
       </aside>
+      <ArticleSaveBar statusText={humanize(article?.status ?? "DRAFT")} />
     </form>
   );
 }

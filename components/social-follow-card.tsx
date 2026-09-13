@@ -30,9 +30,9 @@ const socialLinks = [
 
 export default function SocialFollowCard() {
   return (
-    <section className="social-follow-card" aria-label="Follow Daily Chronicle">
+    <section className="social-follow-card" aria-label="Follow THE WORLD CURRENT">
       <h2>Follow us</h2>
-      <p>Join the conversation and get the latest stories on social.</p>
+      <p>Follow global headlines, video and diaspora stories across social platforms.</p>
       <div>
         {socialLinks.map(({ name, href, icon: Icon }) => (
           <a href={href} key={name} rel="noreferrer" target="_blank" aria-label={`Follow on ${name}`}>

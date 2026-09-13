@@ -101,16 +101,16 @@ export default async function AuditAdminPage({
       </form>
 
       <section className="admin-card admin-table-wrap">
-        <table className="admin-table">
+        <table className="admin-table admin-table-stack">
           <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Summary</th></tr></thead>
           <tbody>
             {rows.map((entry) => (
               <tr key={entry.id}>
-                <td>{new Date(entry.createdAt).toLocaleString()}</td>
-                <td><strong>{entry.actorName ?? "System"}</strong><small>{entry.actorEmail}</small></td>
-                <td><span className="admin-status">{humanize(entry.action)}</span></td>
-                <td>{humanize(entry.entityType)}<small>{entry.entityId}</small></td>
-                <td>{entry.summary ?? "-"}</td>
+                <td data-label="Time">{new Date(entry.createdAt).toLocaleString()}</td>
+                <td data-label="Actor"><strong>{entry.actorName ?? "System"}</strong><small>{entry.actorEmail}</small></td>
+                <td data-label="Action"><span className="admin-status">{humanize(entry.action)}</span></td>
+                <td data-label="Entity">{humanize(entry.entityType)}<small>{entry.entityId}</small></td>
+                <td data-label="Summary">{entry.summary ?? "-"}</td>
               </tr>
             ))}
           </tbody>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type React from "react";
+import { Suspense } from "react";
+import NavigationProgress from "@/components/navigation-progress";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Chronicle",
-  description: "News, showbiz, lifestyle, money, health and travel coverage.",
+  title: "THE WORLD CURRENT",
+  description:
+    "A global newsroom connecting Africa, Britain, America, the diaspora and the wider world.",
 };
 
 export default function RootLayout({
@@ -28,7 +31,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }

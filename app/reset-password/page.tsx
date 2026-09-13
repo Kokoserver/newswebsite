@@ -2,6 +2,7 @@ import { Home, Search } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import BrandLogo from "@/components/brand-logo";
 import ResetPasswordForm from "@/components/reset-password-form";
 import UserMenu from "@/components/user-menu";
 import { getSession } from "@/src/session";
@@ -26,7 +27,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
     <main className="route-page auth-route-page">
       <header className="route-header">
         <Link href="/" className="route-brand">
-          Daily Chronicle
+          <BrandLogo />
         </Link>
         <div className="route-actions">
           <Link href="/search" aria-label="Search" title="Search">

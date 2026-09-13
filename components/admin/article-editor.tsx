@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 
 import { looksLikeMarkdown, markdownToHtml } from "@/src/admin/markdown";
 
+import { UploadProgress, uploadMedia } from "./client-media-upload";
+
 export type EditorMedia = {
   id: string;
   title: string | null;
@@ -63,6 +65,7 @@ export default function ArticleEditor({ initialHtml = "" }: { initialHtml?: stri
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [mediaTab, setMediaTab] = useState<"library" | "upload">("library");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const editor = useEditor({
     extensions: [StarterKit.configure({ link: { openOnClick: false, markdownLinks: true } }), MediaImage, MediaVideo],
@@ -152,17 +155,17 @@ export default function ArticleEditor({ initialHtml = "" }: { initialHtml?: stri
   async function uploadFromEditor(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    setUploading(true); setUploadMessage(null);
+    setUploading(true); setUploadProgress(0); setUploadMessage(null);
     try {
-      const response = await fetch("/api/admin/media", { method: "POST", body: new FormData(form) });
-      const result = await response.json() as { item?: EditorMedia; message?: string };
-      if (!response.ok || !result.item) throw new Error(result.message ?? "Upload failed.");
-      setMediaItems((current) => [result.item!, ...current.filter((item) => item.id !== result.item!.id)]);
+      const { ok, body } = await uploadMedia(new FormData(form), setUploadProgress);
+      const item = body.item;
+      if (!ok || !item) throw new Error(body.message ?? "Upload failed.");
+      setMediaItems((current) => [item!, ...current.filter((entry) => entry.id !== item!.id)]);
       form.reset();
       setUploadMessage("Media uploaded and inserted into the article.");
-      insertMedia(result.item);
+      insertMedia(item);
     } catch (error) { setUploadMessage(error instanceof Error ? error.message : "Upload failed."); }
-    finally { setUploading(false); }
+    finally { setUploading(false); setUploadProgress(null); }
   }
 
   return (
@@ -190,7 +193,7 @@ export default function ArticleEditor({ initialHtml = "" }: { initialHtml?: stri
       <div className="admin-editor-status"><span>{editor.getText().length} characters</span><span>Paste formatted text or Markdown directly</span></div>
       <input type="hidden" name="renderedContent" value={html} />
       <input type="hidden" name="contentJson" value={json} />
-      {mediaOpen ? <div className="admin-editor-modal" role="dialog" aria-modal="true" aria-label="Insert media"><div className="admin-editor-dialog media"><header><div><span className="admin-eyebrow">Media library</span><h3>Insert media</h3></div><button type="button" onClick={() => setMediaOpen(false)} aria-label="Close"><X size={19} /></button></header><div className="admin-editor-tabs" role="tablist"><button type="button" role="tab" aria-selected={mediaTab === "library"} onClick={() => setMediaTab("library")}><Search size={16} />Search library</button><button type="button" role="tab" aria-selected={mediaTab === "upload"} onClick={() => setMediaTab("upload")}><UploadCloud size={16} />Upload</button></div>{mediaTab === "library" ? <><label className="admin-media-search"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search images and videos" /></label>{mediaError ? <p className="admin-editor-message error">{mediaError}</p> : null}<div className="admin-editor-media-grid">{mediaItems.map((item) => <button type="button" key={item.id} onClick={() => insertMedia(item)}>{item.kind === "VIDEO" ? <div className="admin-editor-media-thumb"><video src={item.publicUrl} poster={item.posterUrl ?? undefined} preload="metadata" /><Video size={24} /></div> : <div className="admin-editor-media-thumb"><Image src={item.publicUrl} alt={item.altText ?? item.title ?? ""} fill sizes="(max-width: 540px) 100vw, 240px" unoptimized /></div>}<span><strong>{item.title ?? "Untitled asset"}</strong><small>{item.kind}</small></span></button>)}{!mediaLoading && mediaItems.length === 0 ? <p>No matching images or videos. Upload a new asset here.</p> : null}</div>{mediaLoading ? <p className="admin-editor-message">Loading media...</p> : null}{nextCursor ? <button type="button" className="admin-media-more" onClick={loadMoreMedia} disabled={mediaLoading}>Load more</button> : null}</> : <form className="admin-editor-upload" onSubmit={uploadFromEditor}><div className="admin-editor-upload-mark"><UploadCloud size={30} /><strong>Upload and insert</strong><span>Add an image or video to the media library and insert it at the current position.</span></div><label>Image or video<input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required /></label><label>Title<input name="title" maxLength={240} placeholder="Newsroom display title" /></label><label>Alt text<input name="altText" maxLength={320} placeholder="Describe the image for accessibility" /></label><button className="admin-button" disabled={uploading}>{uploading ? "Uploading..." : "Upload and insert"}</button>{uploadMessage ? <p className="admin-editor-message" aria-live="polite">{uploadMessage}</p> : null}</form>}</div></div> : null}
+      {mediaOpen ? <div className="admin-editor-modal" role="dialog" aria-modal="true" aria-label="Insert media"><div className="admin-editor-dialog media"><header><div><span className="admin-eyebrow">Media library</span><h3>Insert media</h3></div><button type="button" onClick={() => setMediaOpen(false)} aria-label="Close"><X size={19} /></button></header><div className="admin-editor-tabs" role="tablist"><button type="button" role="tab" aria-selected={mediaTab === "library"} onClick={() => setMediaTab("library")}><Search size={16} />Search library</button><button type="button" role="tab" aria-selected={mediaTab === "upload"} onClick={() => setMediaTab("upload")}><UploadCloud size={16} />Upload</button></div>{mediaTab === "library" ? <><label className="admin-media-search"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search images and videos" /></label>{mediaError ? <p className="admin-editor-message error">{mediaError}</p> : null}<div className="admin-editor-media-grid">{mediaItems.map((item) => <button type="button" key={item.id} onClick={() => insertMedia(item)}>{item.kind === "VIDEO" ? <div className="admin-editor-media-thumb"><video src={item.publicUrl} poster={item.posterUrl ?? undefined} preload="metadata" /><Video size={24} /></div> : <div className="admin-editor-media-thumb"><Image src={item.publicUrl} alt={item.altText ?? item.title ?? ""} fill sizes="(max-width: 540px) 100vw, 240px" unoptimized /></div>}<span><strong>{item.title ?? "Untitled asset"}</strong><small>{item.kind}</small></span></button>)}{!mediaLoading && mediaItems.length === 0 ? <p>No matching images or videos. Upload a new asset here.</p> : null}</div>{mediaLoading ? <p className="admin-editor-message">Loading media...</p> : null}{nextCursor ? <button type="button" className="admin-media-more" onClick={loadMoreMedia} disabled={mediaLoading}>Load more</button> : null}</> : <form className="admin-editor-upload" onSubmit={uploadFromEditor}><div className="admin-editor-upload-mark"><UploadCloud size={30} /><strong>Upload and insert</strong><span>Add an image or video to the media library and insert it at the current position.</span></div><label>Image or video<input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required disabled={uploading} /></label><label>Title<input name="title" maxLength={240} placeholder="Newsroom display title" disabled={uploading} /></label><label>Alt text<input name="altText" maxLength={320} placeholder="Describe the image for accessibility" disabled={uploading} /></label><button className="admin-button" disabled={uploading}>{uploading ? "Uploading..." : "Upload and insert"}</button>{uploading ? <UploadProgress progress={uploadProgress} /> : null}{uploadMessage ? <p className="admin-editor-message" aria-live="polite">{uploadMessage}</p> : null}</form>}</div></div> : null}
       {markdownOpen ? <div className="admin-editor-modal" role="dialog" aria-modal="true" aria-label="Import Markdown"><div className="admin-editor-dialog markdown"><header><div><span className="admin-eyebrow">Markdown import</span><h3>Paste Markdown content</h3></div><button type="button" onClick={() => setMarkdownOpen(false)} aria-label="Close"><X size={19} /></button></header><p>Import Markdown from any writing tool. Headings, lists, links, quotes, emphasis and code blocks will become editable rich text.</p><textarea autoFocus value={markdown} onChange={(event) => setMarkdown(event.target.value)} placeholder="# Article heading&#10;&#10;Paste Markdown here..." /><footer><button type="button" onClick={() => setMarkdownOpen(false)}>Cancel</button><button type="button" className="admin-button" onClick={importMarkdown} disabled={!markdown.trim()}>Insert into article</button></footer></div></div> : null}
     </div>
   );

@@ -11,14 +11,14 @@ pnpm dev
 
 Open http://localhost:3000.
 
-By default the app uses `daily-chronicle-demo.db` in the operating system's temporary directory. If an old non-SQLite `DATABASE_URL` is present locally, it is ignored and the demo SQLite file is used.
+By default the app uses `world-current-demo.db` in the operating system's temporary directory. If an old non-SQLite `DATABASE_URL` is present locally, it is ignored and the demo SQLite file is used.
 
 ## Vercel Demo Deployment
 
 For the current demo setup, the app can use file SQLite on Vercel with code defaults. You can deploy without database env vars. Override these only when needed:
 
 ```bash
-SQLITE_DATABASE_URL=file:/tmp/daily-chronicle-demo.db
+SQLITE_DATABASE_URL=file:/tmp/world-current-demo.db
 AUTH_SECRET=your-production-secret
 AUTH_URL=https://your-domain.com
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
@@ -71,6 +71,6 @@ Use `pnpm db:sync` for demo deployments. It runs migrations and seed data. `db:p
 
 ## Backups and recovery
 
-For local demo SQLite, back up `/tmp/daily-chronicle-demo.db`. For Vercel/libSQL, use the provider backup/export workflow and test restores regularly.
+For local demo SQLite, back up `/tmp/world-current-demo.db`. For Vercel/libSQL, use the provider backup/export workflow and test restores regularly.
 
 Bunny.net media is not stored permanently in the app container. Back up Bunny Storage separately using Bunny’s storage APIs or a scheduled sync to another durable object store.

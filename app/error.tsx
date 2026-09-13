@@ -4,6 +4,8 @@ import { Home, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
+import BrandLogo from "@/components/brand-logo";
+
 export default function ErrorPage({
   error,
   reset,
@@ -18,10 +20,10 @@ export default function ErrorPage({
   return (
     <main className="status-page status-page-error">
       <header className="status-header">
-        <Link className="status-brand" href="/" aria-label="Daily Chronicle home">
-          <span>Daily</span> Chronicle
+        <Link className="status-brand" href="/" aria-label="THE WORLD CURRENT home">
+          <BrandLogo />
         </Link>
-        <span className="status-edition">Digital edition · Service notice</span>
+        <span className="status-edition">Global edition · Service notice</span>
       </header>
 
       <section className="status-stage">
@@ -48,8 +50,8 @@ export default function ErrorPage({
       </section>
 
       <footer className="status-footer">
-        <span>Daily Chronicle</span>
-        <p>Independent reporting continues around the clock.</p>
+        <span>THE WORLD CURRENT</span>
+        <p>Global reporting continues around the clock.</p>
       </footer>
     </main>
   );
