@@ -37,19 +37,11 @@ export const getCurrentAdminUser = cache(async (): Promise<AdminUser | null> => 
 });
 
 export async function requireAdminUser(permission: AdminPermission = "dashboard:view") {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login?callbackUrl=/admin");
-
-  const db = await getDb();
-  const user = await db.query.users.findFirst({
-    columns: { id: true, name: true, email: true, role: true, status: true },
-    where: eq(users.id, session.user.id),
-  });
-
-  if (!user || user.status !== "ACTIVE") redirect("/login");
+  const user = await getCurrentAdminUser();
+  if (!user) redirect("/login?callbackUrl=/admin");
   if (!hasPermission(user.role, permission)) redirect("/admin-denied");
 
-  return { id: user.id, name: user.name, email: user.email, role: user.role } satisfies AdminUser;
+  return user;
 }
 
 export async function requireArticleAccess(articleId: string) {
