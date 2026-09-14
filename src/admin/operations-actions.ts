@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { and, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
-import { revalidatePath, updateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import slugify from "slugify";
 import { z } from "zod";
@@ -27,7 +27,7 @@ const POSITION_OFFSET = 100000;
 
 function invalidateAdmin(path: string, publicPaths: string[] = [], tagsToUpdate: string[] = []) {
   revalidatePath(path); revalidatePath("/admin"); publicPaths.forEach((value) => revalidatePath(value));
-  tagsToUpdate.forEach((tag) => updateTag(tag));
+  tagsToUpdate.forEach((tag) => revalidateTag(tag, "max"));
 }
 
 export async function saveCategory(categoryId: string | null, formData: FormData) {

@@ -1,8 +1,8 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { revalidatePath, updateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import sanitizeHtml from "sanitize-html";
 import slugify from "slugify";
@@ -125,10 +125,22 @@ async function ensureHomepagePlacement(
   actorId: string,
 ) {
   const existing = await tx.query.homepageItems.findFirst({
-    columns: { id: true },
+    columns: { id: true, position: true },
     where: and(eq(homepageItems.sectionId, sectionId), eq(homepageItems.articleId, articleId)),
   });
-  if (existing) return;
+  if (existing) {
+    if (existing.position > 1) {
+      await tx.update(homepageItems).set({ position: sql`${homepageItems.position} + ${POSITION_OFFSET}` }).where(eq(homepageItems.sectionId, sectionId));
+      await tx.update(homepageItems).set({ position: POSITION_OFFSET }).where(and(eq(homepageItems.sectionId, sectionId), eq(homepageItems.id, existing.id)));
+      await tx.update(homepageItems).set({ position: sql`${homepageItems.position} - ${POSITION_OFFSET} + 1` }).where(and(eq(homepageItems.sectionId, sectionId), ne(homepageItems.id, existing.id), sql`${homepageItems.position} < ${existing.position + POSITION_OFFSET}`));
+      await tx.update(homepageItems).set({ position: sql`${homepageItems.position} - ${POSITION_OFFSET}` }).where(and(eq(homepageItems.sectionId, sectionId), ne(homepageItems.id, existing.id), sql`${homepageItems.position} >= ${POSITION_OFFSET}`));
+      await tx.update(homepageItems).set({ position: 1, mediaId: mediaId ?? null, startsAt: scheduledAt }).where(eq(homepageItems.id, existing.id));
+    } else {
+      await tx.update(homepageItems).set({ mediaId: mediaId ?? null, startsAt: scheduledAt }).where(eq(homepageItems.id, existing.id));
+    }
+    await tx.insert(auditLogs).values({ actorId, articleId, action: "UPDATE", entityType: "homepage_item", entityId: existing.id, summary: "Moved to the top of a homepage section at article save", metadata: { sectionId } });
+    return;
+  }
   await tx.update(homepageItems).set({ position: sql`${homepageItems.position} + ${POSITION_OFFSET}` }).where(eq(homepageItems.sectionId, sectionId));
   await tx.update(homepageItems).set({ position: sql`${homepageItems.position} - ${POSITION_OFFSET} + 1` }).where(and(eq(homepageItems.sectionId, sectionId), sql`${homepageItems.position} >= ${POSITION_OFFSET}`));
   await tx.insert(homepageItems).values({ sectionId, articleId, mediaId: mediaId ?? null, position: 1, startsAt: scheduledAt }).returning({ id: homepageItems.id });
@@ -189,9 +201,9 @@ export async function saveArticle(articleId: string | null, formData: FormData) 
   revalidatePath("/latest");
   revalidatePath("/admin");
   revalidatePath("/admin/articles");
-  updateTag("articles");
-  updateTag("homepage");
-  updateTag("analytics");
+  revalidateTag("articles", "max");
+  revalidateTag("homepage", "max");
+  revalidateTag("analytics", "max");
   redirect(`/admin/articles/${id}?saved=1`);
 }
 
@@ -206,8 +218,8 @@ export async function archiveArticle(articleId: string) {
   });
   revalidatePath("/");
   revalidatePath("/admin/articles");
-  updateTag("articles");
-  updateTag("homepage");
-  updateTag("analytics");
+  revalidateTag("articles", "max");
+  revalidateTag("homepage", "max");
+  revalidateTag("analytics", "max");
   redirect("/admin/articles");
 }
