@@ -262,24 +262,28 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
           <ShareRow title={article.title} url={articleUrl} />
 
-          {article.heroVideo ? (
-            <VideoPlayer
-              src={article.heroVideo.publicUrl}
-              poster={article.heroVideo.posterUrl ?? article.heroImage?.publicUrl}
-              title={article.title}
-              caption={article.heroVideo.caption ?? article.heroVideo.altText}
-            />
-          ) : (
-            <ArticleImage
-              src={article.heroImage?.publicUrl}
-              alt={article.heroImage?.altText}
-              seed={article.slug}
-              caption={
-                article.heroImage?.altText ??
-                `${article.title} is part of THE WORLD CURRENT news library.`
-              }
-            />
-          )}
+          {article.heroVideo || article.heroImage ? (
+            <div className="article-hero-media">
+              {article.heroVideo ? (
+                <VideoPlayer
+                  src={article.heroVideo.publicUrl}
+                  poster={article.heroVideo.posterUrl ?? article.heroImage?.publicUrl}
+                  title={article.title}
+                  caption={article.heroVideo.caption ?? article.heroVideo.altText}
+                />
+              ) : (
+                <ArticleImage
+                  src={article.heroImage?.publicUrl}
+                  alt={article.heroImage?.altText}
+                  seed={article.slug}
+                  caption={
+                    article.heroImage?.altText ??
+                    `${article.title} is part of THE WORLD CURRENT news library.`
+                  }
+                />
+              )}
+            </div>
+          ) : null}
 
           {article.renderedContent ? (
             <div
@@ -299,11 +303,6 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
               View section <ChevronRight size={14} />
             </Link>
           </aside>
-
-          <ArticleImage
-            seed={`${article.slug}-secondary`}
-            caption="Supporting image for this article package."
-          />
 
           <div className="article-tags">
             {article.tags.map((tag) => (

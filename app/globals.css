@@ -2726,6 +2726,14 @@ input {
   margin: 1rem 0 1.1rem;
 }
 
+.article-hero-media {
+  margin: 1rem 0 1.1rem;
+}
+
+.article-hero-media .article-figure {
+  margin: 0;
+}
+
 .article-figure figcaption {
   margin-top: 0.35rem;
   color: var(--brand-muted);
@@ -3134,8 +3142,7 @@ input {
   flex-direction: column;
 }
 
-.article-template-media .article-body > .article-figure:first-of-type,
-.article-template-media .article-body > .video-player:first-of-type {
+.article-template-media .article-body > .article-hero-media {
   order: -4;
   margin-top: 0;
 }

@@ -13,6 +13,7 @@ import {
   users,
 } from "@/src/db/schema";
 
+import { firstImageSrcFromHtml } from "./media-fallbacks";
 import { asDate } from "./rehydrate";
 
 const getPublishedArticleBySlugCached = unstable_cache(
@@ -187,111 +188,99 @@ export async function searchArticles(query: string, limit = 30) {
   }));
 }
 
-const getLatestArticlesCached = unstable_cache(
-  async (limit: number, offset: number) => {
-    const { getDb } = await import("@/src/db");
-    const db = await getDb();
+async function loadLatestArticles(limit: number, offset: number) {
+  const { getDb } = await import("@/src/db");
+  const db = await getDb();
 
-    const rows = await db
-      .select({
-        id: articles.id,
-        title: articles.title,
-        slug: articles.slug,
-        excerpt: articles.excerpt,
-        publishedAt: articles.publishedAt,
-        authorName: users.name,
-        heroImageUrl: media.publicUrl,
-        heroImageAlt: media.altText,
-        categoryName: categories.name,
-        categorySlug: categories.slug,
-      })
-      .from(articles)
-      .innerJoin(users, eq(articles.authorId, users.id))
-      .leftJoin(media, eq(articles.heroImageId, media.id))
-      .leftJoin(
-        articleCategories,
-        and(eq(articleCategories.articleId, articles.id), eq(articleCategories.isPrimary, true)),
-      )
-      .leftJoin(categories, eq(articleCategories.categoryId, categories.id))
-      .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`))
-      .orderBy(desc(articles.publishedAt))
-      .limit(limit)
-      .offset(offset);
+  const rows = await db
+    .select({
+      id: articles.id,
+      title: articles.title,
+      slug: articles.slug,
+      excerpt: articles.excerpt,
+      renderedContent: articles.renderedContent,
+      publishedAt: articles.publishedAt,
+      authorName: users.name,
+      heroImageUrl: media.publicUrl,
+      heroImageAlt: media.altText,
+      categoryName: categories.name,
+      categorySlug: categories.slug,
+    })
+    .from(articles)
+    .innerJoin(users, eq(articles.authorId, users.id))
+    .leftJoin(media, eq(articles.heroImageId, media.id))
+    .leftJoin(
+      articleCategories,
+      and(eq(articleCategories.articleId, articles.id), eq(articleCategories.isPrimary, true)),
+    )
+    .leftJoin(categories, eq(articleCategories.categoryId, categories.id))
+    .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`))
+    .orderBy(desc(articles.publishedAt))
+    .limit(limit)
+    .offset(offset);
 
-    return rows.map((row) => ({
-      ...row,
-      categoryName: row.categoryName ?? "News",
-      categorySlug: row.categorySlug ?? "news",
-    }));
-  },
-  ["latest-articles"],
-  { revalidate: 60, tags: ["articles"] },
-);
+  return rows.map((row) => ({
+    ...row,
+    renderedContent: undefined,
+    heroImageUrl: row.heroImageUrl ?? firstImageSrcFromHtml(row.renderedContent),
+    categoryName: row.categoryName ?? "News",
+    categorySlug: row.categorySlug ?? "news",
+  }));
+}
 
 export async function getLatestArticles(limit = 12, offset = 0) {
-  return (await getLatestArticlesCached(limit, offset)).map((row) => ({
+  return (await loadLatestArticles(limit, offset)).map((row) => ({
     ...row,
     publishedAt: asDate(row.publishedAt),
   }));
 }
-
-const getMostReadArticlesCached = unstable_cache(
-  async (limit: number) => {
-    const { getDb } = await import("@/src/db");
-    const db = await getDb();
-
-    return db
-      .select({
-        id: articles.id,
-        title: articles.title,
-        slug: articles.slug,
-        categoryName: categories.name,
-        categorySlug: categories.slug,
-        imageUrl: media.publicUrl,
-        imageAlt: media.altText,
-        viewCount: articles.viewCount,
-        publishedAt: articles.publishedAt,
-      })
-      .from(articles)
-      .leftJoin(media, eq(articles.heroImageId, media.id))
-      .leftJoin(
-        articleCategories,
-        and(eq(articleCategories.articleId, articles.id), eq(articleCategories.isPrimary, true)),
-      )
-      .leftJoin(categories, eq(articleCategories.categoryId, categories.id))
-      .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`))
-      .orderBy(desc(articles.viewCount), desc(articles.publishedAt))
-      .limit(limit);
-  },
-  ["most-read-articles"],
-  { revalidate: 60, tags: ["articles"] },
-);
 
 export async function getMostReadArticles(limit = 10) {
-  return (await getMostReadArticlesCached(limit)).map((row) => ({
+  const { getDb } = await import("@/src/db");
+  const db = await getDb();
+
+  const rows = await db
+    .select({
+      id: articles.id,
+      title: articles.title,
+      slug: articles.slug,
+      categoryName: categories.name,
+      categorySlug: categories.slug,
+      renderedContent: articles.renderedContent,
+      imageUrl: media.publicUrl,
+      imageAlt: media.altText,
+      viewCount: articles.viewCount,
+      publishedAt: articles.publishedAt,
+    })
+    .from(articles)
+    .leftJoin(media, eq(articles.heroImageId, media.id))
+    .leftJoin(
+      articleCategories,
+      and(eq(articleCategories.articleId, articles.id), eq(articleCategories.isPrimary, true)),
+    )
+    .leftJoin(categories, eq(articleCategories.categoryId, categories.id))
+    .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`))
+    .orderBy(desc(articles.viewCount), desc(articles.publishedAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
     ...row,
+    renderedContent: undefined,
+    imageUrl: row.imageUrl ?? firstImageSrcFromHtml(row.renderedContent),
     publishedAt: asDate(row.publishedAt),
   }));
 }
 
-const countLatestArticlesCached = unstable_cache(
-  async () => {
-    const { getDb } = await import("@/src/db");
-    const db = await getDb();
-
-    const [row] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(articles)
-      .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`));
-
-    return row?.count ?? 0;
-  },
-  ["count-latest-articles"],
-  { revalidate: 60, tags: ["articles"] },
-);
-
 export async function countLatestArticles() {
-  return countLatestArticlesCached();
+  const { getDb } = await import("@/src/db");
+  const db = await getDb();
+
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(articles)
+    .where(and(eq(articles.status, "PUBLISHED"), sql`${articles.deletedAt} IS NULL`));
+
+  return row?.count ?? 0;
 }
 
 export async function getAdminArticleList(status?: (typeof articles.$inferSelect)["status"]) {
@@ -396,7 +385,7 @@ const getRelatedArticlesCached = unstable_cache(
     const db = await getDb();
 
     if (categoryIds.length === 0) {
-      return getLatestArticlesCached(limit, 0);
+      return loadLatestArticles(limit, 0);
     }
 
     return db
@@ -405,6 +394,7 @@ const getRelatedArticlesCached = unstable_cache(
         title: articles.title,
         slug: articles.slug,
         excerpt: articles.excerpt,
+        renderedContent: articles.renderedContent,
         heroImageUrl: media.publicUrl,
         heroImageAlt: media.altText,
         publishedAt: articles.publishedAt,
@@ -430,6 +420,8 @@ const getRelatedArticlesCached = unstable_cache(
 export async function getRelatedArticles(articleId: string, categoryIds: string[], limit = 4) {
   return (await getRelatedArticlesCached(articleId, categoryIds, limit)).map((row) => ({
     ...row,
+    renderedContent: undefined,
+    heroImageUrl: row.heroImageUrl ?? firstImageSrcFromHtml(row.renderedContent),
     publishedAt: asDate(row.publishedAt),
   }));
 }
