@@ -60,7 +60,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         <div className="auth-card">
-          <span className="auth-card-kicker">THE WORLD CURRENT account</span>
+          <span className="auth-card-kicker">HERITAGE VOICE NEWS account</span>
           {params?.reason === "session-expired" ? (
             <p className="auth-notice">Your session expired. Sign in again to continue.</p>
           ) : null}

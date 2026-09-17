@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 const pageSize = 24;
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-latest-${seed}/720/460`;
+  return `https://picsum.photos/seed/heritage-voice-latest-${seed}/720/460`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -99,7 +99,7 @@ export default async function LatestPage({ searchParams }: LatestPageProps) {
                   <Link href={`/articles/${article.slug}`}>{article.title}</Link>
                 </h2>
                 <p>
-                  {article.excerpt ?? "The latest from THE WORLD CURRENT newsroom."}
+                  {article.excerpt ?? "The latest from HERITAGE VOICE NEWS newsroom."}
                 </p>
                 <p className="route-meta">
                   <Clock3 size={13} /> {formatDate(article.publishedAt)} ·{" "}

@@ -15,7 +15,7 @@ type SearchPageProps = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-search-${seed}/720/460`;
+  return `https://picsum.photos/seed/heritage-voice-search-${seed}/720/460`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -53,7 +53,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       </header>
       <div className="route-kicker">Search</div>
       <h1>Search</h1>
-      <p>Find headlines, people, countries, topics and must-read stories across THE WORLD CURRENT.</p>
+      <p>Find headlines, people, countries, topics and must-read stories across HERITAGE VOICE NEWS.</p>
 
       <form className="search-form" action="/search" method="get">
         <Search size={18} />
@@ -94,7 +94,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       <Link href={`/articles/${article.slug}`}>{article.title}</Link>
                     </h2>
                     <p>
-                      {article.excerpt ?? "The latest from THE WORLD CURRENT newsroom."}
+                      {article.excerpt ?? "The latest from HERITAGE VOICE NEWS newsroom."}
                     </p>
                     <small>
                       {formatDate(article.publishedAt)} · {article.authorName}

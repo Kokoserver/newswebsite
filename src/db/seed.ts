@@ -71,7 +71,7 @@ const legacyCategorySlugs = [
 ] as const;
 
 const staffUsers = [
-  ["THE WORLD CURRENT Editor", "admin@example.com", "SUPER_ADMIN"],
+  ["HERITAGE VOICE NEWS Editor", "admin@example.com", "SUPER_ADMIN"],
   ["Maya Fletcher", "maya.fletcher@example.com", "EDITOR"],
   ["Daniel Okafor", "daniel.okafor@example.com", "AUTHOR"],
   ["Ama Mensah", "ama.mensah@example.com", "AUTHOR"],
@@ -268,7 +268,7 @@ const categoryHeadlines: Record<string, string[]> = {
 const articlesPerCategory = 60;
 
 const videoEntries = [
-  ["The World Current Briefing", "world-current-briefing", "The essential global headlines, picked and explained in minutes."],
+  ["Heritage Voice News Briefing", "heritage-voice-briefing", "The essential global headlines, picked and explained in minutes."],
   ["Africa Business Interview", "africa-business-interview", "A founder explains how African enterprise is reaching global markets."],
   ["Diaspora Report", "diaspora-report", "Stories connecting London, Lagos, Accra, New York and beyond."],
   ["Politics Live", "politics-live", "The decisions, debates and election signals shaping public life."],
@@ -327,7 +327,7 @@ function slugify(value: string) {
 }
 
 function sampleImageUrl(seed: string, width = 1200, height = 760) {
-  return `https://picsum.photos/seed/world-current-${seed}/${width}/${height}`;
+  return `https://picsum.photos/seed/heritage-voice-${seed}/${width}/${height}`;
 }
 
 function daysAgo(days: number) {
@@ -373,7 +373,7 @@ async function clearDemoData(tx: Parameters<Parameters<typeof db.transaction>[0]
   await tx.delete(articleTags);
   await tx.delete(articleCategories);
   await tx.delete(articleRevisions);
-  await tx.delete(articles).where(sql`${articles.sourceName} IN ('THE WORLD CURRENT Demo', 'Daily Chronicle Demo')`);
+  await tx.delete(articles).where(sql`${articles.sourceName} IN ('HERITAGE VOICE NEWS Demo', 'Daily Chronicle Demo')`);
   await tx.delete(navbarItems);
   await tx.delete(categories).where(inArray(categories.slug, legacyCategorySlugs));
   await tx.delete(tags).where(sql`${tags.slug} LIKE 'demo-%'`);
@@ -659,7 +659,7 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
         const author = authors[(categoryIndex + index) % authors.length];
         const heroImage = mediaByPath.get(`demo/${category.slug}/image-${(index % 5) + 1}.jpg`);
         const heroVideo = isLegacyMostReadLink && index === 0
-          ? mediaByPath.get("demo/video/world-current-briefing.mp4")
+          ? mediaByPath.get("demo/video/heritage-voice-briefing.mp4")
           : undefined;
 
         articleRows.push({
@@ -683,8 +683,8 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
           mobileHeroImageId: heroImage?.id,
           socialImageId: heroImage?.id,
           seoTitle: title.slice(0, 70),
-          seoDescription: `${category.name} desk reporting and context from THE WORLD CURRENT.`,
-          sourceName: "THE WORLD CURRENT Demo",
+          seoDescription: `${category.name} desk reporting and context from HERITAGE VOICE NEWS.`,
+          sourceName: "HERITAGE VOICE NEWS Demo",
           sourceUrl: `https://example.com/demo/${slug}`,
           isFeatured: index === 0,
           allowComments: true,
@@ -914,7 +914,7 @@ export async function seedDatabase(database: LibSQLDatabase<typeof schema> = db)
     const middleAdMedia = mediaByPath.get("demo/ads/homepage-middle.jpg");
     const travelAdMedia = mediaByPath.get("demo/ads/sidebar-travel.jpg");
     const financeAdMedia = mediaByPath.get("demo/ads/sidebar-finance.jpg");
-    const briefingAdVideo = mediaByPath.get("demo/video/world-current-briefing.mp4");
+    const briefingAdVideo = mediaByPath.get("demo/video/heritage-voice-briefing.mp4");
     const marketsAdVideo = mediaByPath.get("demo/video/markets-this-week.mp4");
     const seededAds = await tx
       .insert(advertisements)

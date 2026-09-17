@@ -17,7 +17,7 @@ type WatchDetailPageProps = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-video-${seed}/1280/720`;
+  return `https://picsum.photos/seed/heritage-voice-video-${seed}/1280/720`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -74,7 +74,7 @@ export default async function WatchDetailPage({ params }: WatchDetailPageProps) 
       <div className="watch-detail-body">
         <div className="route-kicker">Video</div>
         <h1>{video.title}</h1>
-        <p>{video.caption ?? "A video package from THE WORLD CURRENT."}</p>
+        <p>{video.caption ?? "A video package from HERITAGE VOICE NEWS."}</p>
         <p className="watch-detail-meta">
           {video.mimeType} · {formatDate(video.createdAt)}
         </p>

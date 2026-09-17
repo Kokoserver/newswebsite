@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <main className="status-page status-page-not-found">
       <header className="status-header">
-        <Link className="status-brand" href="/" aria-label="THE WORLD CURRENT home">
+        <Link className="status-brand" href="/" aria-label="HERITAGE VOICE NEWS home">
           <BrandLogo />
         </Link>
         <span className="status-edition">Global edition · Page unavailable</span>
@@ -35,7 +35,7 @@ export default function NotFound() {
 
       <footer className="status-footer">
         <span>Try another route</span>
-        <Link href="/search"><Search size={14} />Search THE WORLD CURRENT</Link>
+        <Link href="/search"><Search size={14} />Search HERITAGE VOICE NEWS</Link>
         <Link href="/latest">Latest stories</Link>
       </footer>
     </main>

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "THE WORLD CURRENT",
+  title: "HERITAGE VOICE NEWS",
   description:
     "A global newsroom connecting Africa, Britain, America, the diaspora and the wider world.",
 };

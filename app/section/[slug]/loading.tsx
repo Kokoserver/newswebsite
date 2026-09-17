@@ -6,7 +6,7 @@ export default function SectionLoading() {
   return (
     <main className="channel-page">
       <header className="channel-header">
-        <Link href="/" className="channel-brand" aria-label="THE WORLD CURRENT home">
+        <Link href="/" className="channel-brand" aria-label="HERITAGE VOICE NEWS home">
           <BrandLogo />
         </Link>
         <div className="channel-actions" />

@@ -10,7 +10,7 @@ import { getVideoMedia } from "@/src/db/queries/media";
 export const dynamic = "force-dynamic";
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-video-${seed}/1280/720`;
+  return `https://picsum.photos/seed/heritage-voice-video-${seed}/1280/720`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {
@@ -47,7 +47,7 @@ export default async function WatchPage() {
       <div className="route-kicker">Video</div>
       <h1>Watch</h1>
       <p>
-        Video briefings, interviews and packages from THE WORLD CURRENT newsroom.
+        Video briefings, interviews and packages from HERITAGE VOICE NEWS newsroom.
       </p>
       <div className="watch-page-grid">
         {videos.map((video) => (
@@ -68,7 +68,7 @@ export default async function WatchPage() {
                 <Play size={20} fill="currentColor" />
               </span>
               <h2>{video.title}</h2>
-              <p>{video.caption ?? "A video package from THE WORLD CURRENT."}</p>
+              <p>{video.caption ?? "A video package from HERITAGE VOICE NEWS."}</p>
               <span>{formatDate(video.createdAt)}</span>
             </Link>
           </article>

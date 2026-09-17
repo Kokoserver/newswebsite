@@ -30,7 +30,7 @@ const socialLinks = [
 
 export default function SocialFollowCard() {
   return (
-    <section className="social-follow-card" aria-label="Follow THE WORLD CURRENT">
+    <section className="social-follow-card" aria-label="Follow HERITAGE VOICE NEWS">
       <h2>Follow us</h2>
       <p>Follow global headlines, video and diaspora stories across social platforms.</p>
       <div>

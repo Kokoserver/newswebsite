@@ -65,7 +65,7 @@ export default function AdminShell({
       <aside className={`admin-sidebar${open ? " is-open" : ""}`}>
         <div className="admin-sidebar-brand">
           <span className="admin-brand-mark"><BookOpenText size={19} /></span>
-          <span className="admin-brand-copy"><strong>THE WORLD CURRENT</strong><small>Newsroom control</small></span>
+          <span className="admin-brand-copy"><strong>HERITAGE VOICE NEWS</strong><small>Newsroom control</small></span>
           <button className="admin-mobile-close" onClick={() => setOpen(false)} aria-label="Close menu"><X size={20} /></button>
         </div>
         <nav className="admin-nav" aria-label="Administration">

@@ -123,7 +123,7 @@ export default function AdvertisementSlot({
       />
     );
   } else {
-    content = <strong>THE WORLD CURRENT</strong>;
+    content = <strong>HERITAGE VOICE NEWS</strong>;
   }
 
   return (

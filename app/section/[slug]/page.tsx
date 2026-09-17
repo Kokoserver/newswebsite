@@ -31,7 +31,7 @@ type SectionPageProps = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-section-${seed}/720/460`;
+  return `https://picsum.photos/seed/heritage-voice-section-${seed}/720/460`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en", {

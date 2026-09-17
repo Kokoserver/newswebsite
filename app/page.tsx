@@ -88,7 +88,7 @@ type ListedStory = {
 };
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-${seed}/1200/760`;
+  return `https://picsum.photos/seed/heritage-voice-${seed}/1200/760`;
 }
 
 function shareUrl(path: string) {
@@ -548,7 +548,7 @@ export default async function Home() {
   );
 
   return (
-    <main className="news-site world-current-home">
+    <main className="news-site heritage-voice-home">
       <header className="news-header">
         <details className="desktop-menu">
           <summary aria-label="Open menu">
@@ -566,7 +566,7 @@ export default async function Home() {
             </nav>
           </div>
         </details>
-        <Link href="/" className="news-logo" aria-label="THE WORLD CURRENT home">
+        <Link href="/" className="news-logo" aria-label="HERITAGE VOICE NEWS home">
           <BrandLogo priority />
         </Link>
         <div className="news-actions">
@@ -588,7 +588,7 @@ export default async function Home() {
         </nav>
       </StickySiteHeader>
 
-      <section className="world-current-brief" aria-label="THE WORLD CURRENT positioning">
+      <section className="heritage-voice-brief" aria-label="HERITAGE VOICE NEWS positioning">
         <strong>Different Nations. One World. One Voice.</strong>
         <span>An ACHEBE HOPE FOUNDATION Initiative</span>
       </section>
@@ -762,7 +762,7 @@ export default async function Home() {
 
       <footer className="news-footer">
         <h2>
-          <BrandLogo variant="dark" />
+          <BrandLogo />
         </h2>
         <p>
           Africa. Britain. America. The World. Different Nations. One World. One Voice.

@@ -50,7 +50,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       <section className="auth-hero">
         <div className="auth-hero-copy">
           <div className="route-kicker">Member access</div>
-          <h1>Create your THE WORLD CURRENT account</h1>
+          <h1>Create your HERITAGE VOICE NEWS account</h1>
           <p>
             Sign up to comment on stories, react to reader opinions, and continue
             directly from the article that brought you here.

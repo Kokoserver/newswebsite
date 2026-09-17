@@ -31,7 +31,7 @@ export default function UserMenu({ size = 18 }: UserMenuProps) {
   }
 
   const displayName =
-    user.name === "Daily Chronicle Admin" ? "THE WORLD CURRENT Admin" : (user.name ?? user.email);
+    user.name === "Daily Chronicle Admin" ? "HERITAGE VOICE NEWS Admin" : (user.name ?? user.email);
   const canViewDashboard = ["SUPER_ADMIN", "ADMIN", "EDITOR"].includes(user.role ?? "");
   const expiresAt = session?.expires ? new Date(session.expires).getTime() : Number.NaN;
 

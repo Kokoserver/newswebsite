@@ -39,7 +39,7 @@ export default async function ForgotPasswordPage() {
           <h1>Reset your password</h1>
           <p>
             Enter your account email and we will create a secure reset link for
-            your THE WORLD CURRENT account.
+            your HERITAGE VOICE NEWS account.
           </p>
         </div>
 

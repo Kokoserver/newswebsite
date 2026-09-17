@@ -56,7 +56,7 @@ function formatDate(date: Date | null) {
 }
 
 function fallbackImage(seed: string) {
-  return `https://picsum.photos/seed/world-current-article-${seed}/960/620`;
+  return `https://picsum.photos/seed/heritage-voice-article-${seed}/960/620`;
 }
 
 function shareUrl(path: string) {
@@ -201,7 +201,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
         <header className="article-masthead">
           <Link href="/" className="article-brand">
             <BrandLogo className="article-logo-normal" />
-            <BrandLogo variant="dark" className="article-logo-scrolled" />
+            <BrandLogo className="article-logo-scrolled" />
           </Link>
           <nav aria-label="Article navigation">
             <Link href="/">Home</Link>
@@ -241,7 +241,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           <p className="article-standfirst">
             {article.excerpt ??
               article.subtitle ??
-              "Latest reporting, context and analysis from THE WORLD CURRENT newsroom."}
+              "Latest reporting, context and analysis from HERITAGE VOICE NEWS newsroom."}
           </p>
 
           <ul className="article-bullets">
@@ -251,7 +251,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           </ul>
 
           <div className="article-meta">
-            <span>By {article.author?.name ?? "THE WORLD CURRENT Reporter"}</span>
+            <span>By {article.author?.name ?? "HERITAGE VOICE NEWS Reporter"}</span>
             <span>
               <Clock3 size={13} /> Published: {formatDate(article.publishedAt)}
             </span>
@@ -278,7 +278,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
                   seed={article.slug}
                   caption={
                     article.heroImage?.altText ??
-                    `${article.title} is part of THE WORLD CURRENT news library.`
+                    `${article.title} is part of HERITAGE VOICE NEWS news library.`
                   }
                 />
               )}

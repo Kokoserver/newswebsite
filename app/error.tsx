@@ -20,7 +20,7 @@ export default function ErrorPage({
   return (
     <main className="status-page status-page-error">
       <header className="status-header">
-        <Link className="status-brand" href="/" aria-label="THE WORLD CURRENT home">
+        <Link className="status-brand" href="/" aria-label="HERITAGE VOICE NEWS home">
           <BrandLogo />
         </Link>
         <span className="status-edition">Global edition · Service notice</span>
@@ -50,7 +50,7 @@ export default function ErrorPage({
       </section>
 
       <footer className="status-footer">
-        <span>THE WORLD CURRENT</span>
+        <span>HERITAGE VOICE NEWS</span>
         <p>Global reporting continues around the clock.</p>
       </footer>
     </main>

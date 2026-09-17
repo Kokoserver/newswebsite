@@ -6,7 +6,7 @@ export default function ArticlesLoading() {
   return (
     <main className="article-site">
       <header className="article-masthead">
-        <Link href="/" className="article-brand" aria-label="THE WORLD CURRENT home">
+        <Link href="/" className="article-brand" aria-label="HERITAGE VOICE NEWS home">
           <BrandLogo className="article-logo-normal" />
         </Link>
         <nav aria-label="Article navigation" />

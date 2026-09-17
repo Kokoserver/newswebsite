@@ -24,7 +24,7 @@ export default function GlobalError({
       <body>
         <main className="status-page status-page-error">
           <header className="status-header">
-            <Link className="status-brand" href="/" aria-label="THE WORLD CURRENT home"><BrandLogo /></Link>
+            <Link className="status-brand" href="/" aria-label="HERITAGE VOICE NEWS home"><BrandLogo /></Link>
             <span className="status-edition">Global edition · Service notice</span>
           </header>
           <section className="status-stage">
